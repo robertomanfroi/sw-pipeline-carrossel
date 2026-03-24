@@ -930,6 +930,30 @@
   }
   .formula-badge strong { color: var(--orange); }
   .formula-icon { font-size: 18px; }
+
+  /* ─── SLIDES PREVIEW GRID (fase 7) ─── */
+  .slides-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .slide-preview-card {
+    border-radius: 10px;
+    padding: 16px;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+  }
+  .slide-preview-card.fundo-branco { background: #FFFFFF; color: #1a1a1a; border: 1px solid #e0e0e0; }
+  .slide-preview-card.fundo-preto  { background: #000000; color: #FFFFFF; }
+  .slide-preview-card.fundo-laranja { background: #C84B1A; color: #FFFFFF; }
+  .slide-preview-card.fundo-foto   { background: linear-gradient(135deg,#2a1505,#7a2d0a); color: #FFFFFF; }
+  .slide-preview-num  { font-family: monospace; font-size: 10px; opacity: 0.5; }
+  .slide-preview-tipo { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; }
+  .slide-preview-texto { font-size: 11px; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -984,6 +1008,7 @@ const state = {
   nicho: '',
   objetivo: '',
   gancho: '',
+  ganchoInput: '',
   formula: '',
   extensao: '',
   voz: '',
@@ -993,7 +1018,8 @@ const state = {
   carrosselGerado: '',
   legendaGerada: '',
   canvaLink: '',
-  modeloDesignId: ''
+  modeloDesignId: '',
+  slidesData: []
 };
 
 // ─── PHASES ───
@@ -1373,6 +1399,9 @@ function renderPhase() {
         </div>
       </div>
 
+      <!-- PREVIEW VISUAL DOS SLIDES -->
+      ${buildSlidesPreviewGrid()}
+
       <!-- TEXTO DOS SLIDES -->
       <div class="generated-box" style="margin-bottom:16px">
         <div class="generated-header">
@@ -1450,11 +1479,343 @@ function renderAll() {
   renderPhase();
 }
 
+// ─── NICHO VARIANTES ───
+function getNichoVariantes(nicho) {
+  const n = (nicho || '').toLowerCase();
+  if (n.includes('loja') || n.includes('roupa') || n.includes('moda')) {
+    return {
+      tipo: 'varejo de moda',
+      gancho: 'A cliente entrou na loja, provou tudo, amou — e saiu com "vou pensar".',
+      situacao: 'Você já perdeu venda porque o cliente "foi pensar" e nunca voltou?',
+      inimigo: 'O problema não é o preço. É a falta de um script para o momento crítico da decisão.',
+      solucoes: [
+        'Script 1: Pergunte o que impediu a decisão agora. Ouça com atenção.',
+        'Script 2: Mostre escassez real — estoque limitado, promoção com prazo.',
+        'Script 3: Ofereça facilidade — pagamento parcelado, entrega, reserva por 24h.',
+      ],
+      resultado: 'Quando você treina o script certo, a taxa de fechamento dobra em 30 dias.',
+      virada: 'Eu aprendi isso na marra. Depois que passei a usar essa abordagem, as vendas presenciais mudaram.',
+      polarNeg: '"Eu nunca abaixo preço, quem não quer pagar não é meu cliente."',
+      polarPos: '"Entendo. Mas e se o problema não for preço, e sim falta de argumento na hora certa?"',
+      produto: 'No Engrene, ensino exatamente como treinar seu atendimento para vender mais sem baixar preço.',
+      ctaPalavra: 'SCRIPT',
+    };
+  }
+  if (n.includes('salão') || n.includes('beleza') || n.includes('estética') || n.includes('estetic')) {
+    return {
+      tipo: 'salão de beleza',
+      gancho: 'A cliente agendou, confirmou — e não apareceu. Isso custa caro demais.',
+      situacao: 'Falta no agendamento é a maior dor de quem trabalha com serviço de beleza.',
+      inimigo: 'O problema não é o cliente irresponsável. É a falta de um protocolo de confirmação eficiente.',
+      solucoes: [
+        'Script 1: Confirmação 48h antes com link de reagendamento fácil.',
+        'Script 2: Política de encaixe para emergências — aproveite o slot vazio.',
+        'Script 3: Lista de espera ativa — quem está disponível agora?',
+      ],
+      resultado: 'Com esse protocolo, a taxa de no-show cai mais de 60% em 2 semanas.',
+      virada: 'Quando eu entendi que reter cliente é mais barato que captar, mudei o jogo do meu negócio.',
+      polarNeg: '"Minha agenda está sempre cheia, isso não me acontece."',
+      polarPos: '"Agenda cheia e agenda rentável são coisas diferentes. Você sabe quanto perdeu nos últimos 30 dias?"',
+      produto: 'No Engrene, mostramos como transformar agenda cheia em agenda lucrativa.',
+      ctaPalavra: 'AGENDA',
+    };
+  }
+  if (n.includes('confeitaria') || n.includes('bolo') || n.includes('doce') || n.includes('confeit')) {
+    return {
+      tipo: 'confeitaria',
+      gancho: 'O cliente perguntou o preço, você respondeu — e ele sumiu. Isso tem solução.',
+      situacao: 'Precificar doces e bolos é o maior gargalo de quem trabalha com confeitaria.',
+      inimigo: 'O problema não é seu produto ser caro. É não conseguir comunicar o valor do que você entrega.',
+      solucoes: [
+        'Script 1: Antes do preço, mostre o que está incluso — ingredientes, tempo, entrega.',
+        'Script 2: Compare o custo com o concorrente sem denegrir — use os diferenciais.',
+        'Script 3: Ofereça uma versão menor como entrada, sem baixar a qualidade.',
+      ],
+      resultado: 'Quando você vende valor antes de preço, para de ter que se justificar.',
+      virada: 'Eu parei de perder pedidos quando aprendi que a venda começa antes da cotação.',
+      polarNeg: '"Quem acha caro não é meu cliente, simples assim."',
+      polarPos: '"Quem acha caro talvez não tenha entendido o valor. Esse é o seu trabalho comunicar."',
+      produto: 'No Engrene, treinamos você para vender sem se sentir constrangida com o preço.',
+      ctaPalavra: 'VALOR',
+    };
+  }
+  if (n.includes('clínica') || n.includes('saúde') || n.includes('médico') || n.includes('medico') || n.includes('clinic')) {
+    return {
+      tipo: 'clínica de saúde',
+      gancho: 'O paciente fez a consulta, saiu satisfeito — e nunca mais voltou. Isso tem nome: abandono.',
+      situacao: 'Manter o paciente em acompanhamento contínuo é o maior desafio das clínicas.',
+      inimigo: 'O problema não é falta de interesse do paciente. É ausência de protocolo de retenção.',
+      solucoes: [
+        'Script 1: Lembrete personalizado com o nome do paciente antes da data recomendada.',
+        'Script 2: Conteúdo educativo entre consultas — você não some até o próximo retorno.',
+        'Script 3: Pesquisa de satisfação ativa — quem pergunta, fideliza.',
+      ],
+      resultado: 'Clínicas com protocolo de retenção têm 3x mais retorno espontâneo.',
+      virada: 'Quando entendi que atendimento começa no pós-consulta, o negócio mudou de patamar.',
+      polarNeg: '"Paciente bom é o que volta por conta própria quando precisa."',
+      polarPos: '"Paciente bem atendido volta antes de precisar. Essa é a diferença entre clínica e negócio."',
+      produto: 'No Engrene, mostramos como transformar paciente pontual em paciente fiel.',
+      ctaPalavra: 'PROTOCOLO',
+    };
+  }
+  // Default: negócio local genérico
+  return {
+    tipo: 'negócio local',
+    gancho: 'Sabe aquela situação que toda empreendedora já viveu e nunca esquece?',
+    situacao: 'Você trabalha muito, entrega bem — mas sente que poderia vender muito mais.',
+    inimigo: 'O problema não é falta de produto bom. É falta de processo para vender o que você já tem.',
+    solucoes: [
+      'Script 1: Identifique o ponto de perda — onde o cliente sai sem comprar?',
+      'Script 2: Tenha um argumento pronto para cada objeção comum no seu nicho.',
+      'Script 3: Crie um acompanhamento pós-venda para gerar recompra e indicação.',
+    ],
+    resultado: 'Com processo definido, as vendas deixam de depender do seu dia — elas acontecem.',
+    virada: 'O que mudou meu negócio foi parar de vender no improviso e ter um método.',
+    polarNeg: '"Quem tem bom produto não precisa de script de vendas."',
+    polarPos: '"Quem tem bom produto E script de vendas fecha muito mais. Os dois não se excluem."',
+    produto: 'No Engrene, você aprende o método completo de marketing e vendas para negócios locais.',
+    ctaPalavra: 'MÉTODO',
+  };
+}
+
+// ─── TEXTO POR SLOT ───
+
+function ganchoF1(nicho, tema) {
+  if (state.ganchoInput && state.ganchoInput.length > 10) {
+    const trecho = state.ganchoInput.slice(0, 70);
+    return `Viram o que aconteceu com ${trecho}...\n\nMeus caros empreendedores, isso diz muito mais sobre negócios do que parece.`;
+  }
+  const v = getNichoVariantes(nicho);
+  return `Viram essa situação nos ${v.tipo}, meus caros empreendedores?\n\n${v.gancho}`;
+}
+
+function contextoF1(nicho, tema) {
+  if (state.ganchoInput && state.ganchoInput.length > 10) {
+    return `Quando vi ${state.ganchoInput.slice(0, 80)}, fiquei pensando no quanto isso reflete o dia a dia de quem empreende.\n\nNão é coincidência. É padrão.`;
+  }
+  const v = getNichoVariantes(nicho);
+  return `${v.situacao}\n\nEssa é uma das cenas mais repetidas no ${v.tipo} brasileiro — e poucas empreendedoras sabem o que fazer nesse momento.`;
+}
+
+function polarizacaoNeg(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `O que a maioria faz:\n\n${v.polarNeg}\n\nE aí fica esperando o milagre acontecer.`;
+}
+
+function polarizacaoPos(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `Mas existe outro caminho:\n\n${v.polarPos}\n\nE é exatamente isso que separa quem vende de quem apenas atende.`;
+}
+
+function autoridadeF1(nicho) {
+  const voz = state.voz === 'marca' ? 'A gente já acompanhou' : 'Eu já acompanhei';
+  return `${voz} centenas de empreendedoras no ${getNichoVariantes(nicho).tipo}.\n\nO padrão é sempre o mesmo: quem tem método, vende mais. Quem improvisa, perde.`;
+}
+
+function viradaF1(nicho) {
+  const v = getNichoVariantes(nicho);
+  const eu = state.voz === 'marca' ? 'A gente descobriu' : 'Eu aprendi';
+  return `${eu} na prática:\n\n${v.virada}`;
+}
+
+function licaoF1(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `A lição que fica:\n\n${v.resultado}\n\nNão é sobre trabalhar mais. É sobre trabalhar com método.`;
+}
+
+function produtoF1() {
+  return `SUELLEN WARMLING\n\n${getNichoVariantes(state.nicho).produto}`;
+}
+
+function ctaF1(objetivo) {
+  const v = getNichoVariantes(state.nicho);
+  const palavra = v.ctaPalavra;
+  if (objetivo === 'vendas') {
+    return `Comente ${palavra} aqui embaixo e eu te mando o material completo direto no seu Direct.\n\nSUELLEN WARMLING`;
+  }
+  if (objetivo === 'saves' || objetivo === 'salvamentos') {
+    return `Salva esse carrossel antes de fechar — você vai querer reler.\n\nComente GUIA e eu te mando o passo a passo completo.\n\nSUELLEN WARMLING`;
+  }
+  return `Comente ${palavra} aqui nos comentários e me conta: qual parte foi mais reveladora pra você?\n\nSUELLEN WARMLING`;
+}
+
+// Fórmula 2
+function ganchoF2(nicho, tema) {
+  if (state.ganchoInput && state.ganchoInput.length > 10) {
+    return `Viram essa, meus caros empreendedores?\n\n${state.ganchoInput.slice(0, 100)}\n\nTem gente que vai odiar o que vou falar. Mas precisa ser dito.`;
+  }
+  const v = getNichoVariantes(nicho);
+  return `Tenho uma opinião sobre ${v.tipo} que vai dividir quem me lê.\n\nMas prefiro ser honesta com você do que falar só o que é bonito de ouvir.`;
+}
+
+function posicionamento(nicho) {
+  const v = getNichoVariantes(nicho);
+  const eu = state.voz === 'marca' ? 'A gente acredita' : 'Eu acredito';
+  return `${eu} que o maior problema no ${v.tipo} hoje não é a economia, não é a concorrência, não é o Instagram.\n\nÉ o improviso disfarçado de "jeitinho".`;
+}
+
+function printHater(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `[Print hater]\n"${v.polarNeg.replace(/"/g,'')}"\n\n🙄`;
+}
+
+function printDefensor(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `[Print defensor]\n"${v.polarPos.replace(/"/g,'')}"\n\nExatamente isso.`;
+}
+
+function reflexao(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `A pergunta que ninguém quer responder:\n\n${v.situacao}\n\nE a resposta honesta costuma ser: "estou indo no piloto automático."`;
+}
+
+function viradaF2(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `A virada acontece quando você para de esperar e começa a agir com método.\n\n${v.resultado}`;
+}
+
+function licaoF2(nicho) {
+  return `Você pode discordar de mim. Tudo bem.\n\nMas os números do ${getNichoVariantes(nicho).tipo} que trabalha com método não mentem.`;
+}
+
+function produtoF2() {
+  return `SUELLEN WARMLING\n\n${getNichoVariantes(state.nicho).produto}`;
+}
+
+function ctaF2() {
+  const v = getNichoVariantes(state.nicho);
+  return `Concorda ou discorda? Me conta nos comentários.\n\nComente ${v.ctaPalavra} e eu te mando o material que vai mudar sua visão sobre isso.\n\nSUELLEN WARMLING`;
+}
+
+// Fórmula 3
+function ganchoF3(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `3 coisas que todo empreendedor de ${v.tipo} precisa parar de fazer — e o que fazer no lugar.\n\n(Salva esse carrossel.)`;
+}
+
+function situacao(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `${v.situacao}\n\nSe você já passou por isso, você não está sozinha. E tem saída.`;
+}
+
+function inimigoComum(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `O inimigo não é o que você pensa.\n\n${v.inimigo}`;
+}
+
+function solucao1(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `PASSO 1\n\n${v.solucoes[0]}`;
+}
+
+function solucao2(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `PASSO 2\n\n${v.solucoes[1]}`;
+}
+
+function solucao3(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `PASSO 3\n\n${v.solucoes[2]}`;
+}
+
+function resultado(nicho) {
+  const v = getNichoVariantes(nicho);
+  return `O resultado quando você aplica:\n\n${v.resultado}`;
+}
+
+function viradaF3(nicho) {
+  const v = getNichoVariantes(nicho);
+  const eu = state.voz === 'marca' ? 'A gente aprendeu' : 'Aprendi';
+  return `${eu} isso na prática:\n\n${v.virada}`;
+}
+
+function produtoF3() {
+  return `SUELLEN WARMLING\n\n${getNichoVariantes(state.nicho).produto}`;
+}
+
+function ctaF3() {
+  const v = getNichoVariantes(state.nicho);
+  return `Salva esse carrossel para consultar sempre que precisar.\n\nComente ${v.ctaPalavra} e eu te mando o guia completo no Direct.\n\nSUELLEN WARMLING`;
+}
+
+// ─── DIAGNÓSTICO DE FÓRMULA ───
+function diagnosticarFormula() {
+  const obj = state.objetivo;
+  const temEvento = state.ganchoInput && state.ganchoInput.length > 10;
+  if (obj === 'viralizar' || obj === 'autoridade' || temEvento) return 'F1';
+  if (obj === 'comentarios') return 'F2';
+  if (obj === 'vendas' || obj === 'saves' || obj === 'salvamentos') return 'F3';
+  return 'F1'; // default
+}
+
+// ─── GERAR CARROSSEL REAL ───
+function gerarCarrosselReal() {
+  const nicho = state.nicho || 'negócio local';
+  const tema = state.ganchoInput || '';
+  const formula = diagnosticarFormula();
+  state.formula = formula;
+
+  let slides = [];
+
+  if (formula === 'F1') {
+    slides = [
+      { tipo: 'gancho',      fundo: 'foto',    texto: ganchoF1(nicho, tema) },
+      { tipo: 'contexto',    fundo: 'branco',  texto: contextoF1(nicho, tema) },
+      { tipo: 'polarizacao', fundo: 'preto',   texto: polarizacaoNeg(nicho) },
+      { tipo: 'polarizacao', fundo: 'preto',   texto: polarizacaoPos(nicho) },
+      { tipo: 'autoridade',  fundo: 'branco',  texto: autoridadeF1(nicho) },
+      { tipo: 'virada',      fundo: 'branco',  texto: viradaF1(nicho) },
+      { tipo: 'licao',       fundo: 'branco',  texto: licaoF1(nicho) },
+      { tipo: 'produto',     fundo: 'branco',  texto: produtoF1() },
+      { tipo: 'cta',         fundo: 'laranja', texto: ctaF1(state.objetivo) },
+    ];
+  } else if (formula === 'F2') {
+    slides = [
+      { tipo: 'gancho',          fundo: 'foto',    texto: ganchoF2(nicho, tema) },
+      { tipo: 'posicionamento',  fundo: 'branco',  texto: posicionamento(nicho) },
+      { tipo: 'polarizacao',     fundo: 'preto',   texto: printHater(nicho) },
+      { tipo: 'polarizacao',     fundo: 'preto',   texto: printDefensor(nicho) },
+      { tipo: 'reflexao',        fundo: 'branco',  texto: reflexao(nicho) },
+      { tipo: 'virada',          fundo: 'laranja', texto: viradaF2(nicho) },
+      { tipo: 'licao',           fundo: 'branco',  texto: licaoF2(nicho) },
+      { tipo: 'produto',         fundo: 'branco',  texto: produtoF2() },
+      { tipo: 'cta',             fundo: 'laranja', texto: ctaF2() },
+    ];
+  } else {
+    // F3
+    slides = [
+      { tipo: 'gancho',   fundo: 'branco',  texto: ganchoF3(nicho) },
+      { tipo: 'situacao', fundo: 'branco',  texto: situacao(nicho) },
+      { tipo: 'inimigo',  fundo: 'preto',   texto: inimigoComum(nicho) },
+      { tipo: 'solucao1', fundo: 'laranja', texto: solucao1(nicho) },
+      { tipo: 'solucao2', fundo: 'laranja', texto: solucao2(nicho) },
+      { tipo: 'solucao3', fundo: 'laranja', texto: solucao3(nicho) },
+      { tipo: 'resultado',fundo: 'branco',  texto: resultado(nicho) },
+      { tipo: 'virada',   fundo: 'branco',  texto: viradaF3(nicho) },
+      { tipo: 'produto',  fundo: 'foto',    texto: produtoF3() },
+      { tipo: 'cta',      fundo: 'laranja', texto: ctaF3() },
+    ];
+  }
+
+  // Mapear fundo para descrição visual legível
+  const fundoLabel = { branco: 'Fundo BRANCO', preto: 'Fundo PRETO', laranja: 'Fundo LARANJA #C84B1A', foto: 'Fundo FOTO (overlay)' };
+
+  state.slidesData = slides;
+
+  // Gerar string formatada para exibição/cópia
+  const linhas = slides.map((s, i) => {
+    const num = String(i + 1).padStart(2, '0');
+    const tipoLabel = s.tipo.toUpperCase().replace(/\d/g, '');
+    return `---\nSLIDE ${num} — [Tipo: ${tipoLabel}]\n${s.texto}\nVisual: ${fundoLabel[s.fundo]}`;
+  });
+  state.carrosselGerado = linhas.join('\n\n');
+}
+
 function gerarCarrossel() {
   document.getElementById('loadingGen').style.display = 'block';
   setTimeout(() => {
-    state.carrosselGerado = getExampleCarrossel();
-    state.legendaGerada = getLegendaGerada();
+    gerarCarrosselReal();
+    state.legendaGerada = gerarLegendaReal();
     renderPhase();
   }, 1800);
 }
@@ -1495,8 +1856,9 @@ function copyLegenda() {
 function reiniciar() {
   Object.assign(state, {
     currentPhase: 1, tema: '', nicho: '', objetivo: '', gancho: '',
-    formula: '', extensao: '', voz: '', textoAprovado: false,
-    modelo: '', carrosselGerado: '', legendaGerada: '', canvaLink: '', modeloDesignId: ''
+    ganchoInput: '', formula: '', extensao: '', voz: '', textoAprovado: false,
+    modelo: '', carrosselGerado: '', legendaGerada: '', canvaLink: '', modeloDesignId: '',
+    slidesData: []
   });
   renderAll();
   window.scrollTo(0,0);
@@ -1506,77 +1868,33 @@ function getModelId() {
   return state.modeloDesignId || 'DAHE5MATRwk';
 }
 
+function gerarLegendaReal() {
+  const nicho = state.nicho || 'negócio local';
+  const v = getNichoVariantes(nicho);
+  const formula = state.formula || diagnosticarFormula();
+  let abertura = '';
+  if (state.ganchoInput && state.ganchoInput.length > 10) {
+    abertura = `Viram ${state.ganchoInput.slice(0, 60)}...? 👀\n\n`;
+  } else {
+    abertura = `Cara empreendedora, isso muda tudo no seu ${v.tipo}. 👀\n\n`;
+  }
+  const corpo = `${v.situacao}\n\n${v.resultado}`;
+  const cta = `\n\nComente ${v.ctaPalavra} nos comentários e eu te mando o material completo direto no seu Direct. 👇`;
+  const tags = `\n\n#empreendedorismo #negocioslocais #${nicho.replace(/\s+/g,'').toLowerCase()} #vendas #suellenwarmling #marketingdigital`;
+  return abertura + corpo + cta + tags;
+}
+
 function getLegenda() {
-  return state.legendaGerada || `Viram esse atendimento, meus caros empreendedores? 👀
-
-A forma como você responde uma objeção no WhatsApp pode ser a diferença entre perder e fechar uma venda. "Vou falar com meu marido" não precisa ser fim de conversa.
-
-Qual das opções você já usa? Conta nos comentários! 👇
-
-Comente SCRIPT e eu te mando meu guia completo de respostas para as 10 objeções mais comuns no seu nicho.
-
-#empreendedorismo #negocioslocais #vendas #atendimento #suellenwarmling #whatsappbusiness`;
+  return state.legendaGerada || gerarLegendaReal();
 }
 
 function getLegendaGerada() {
-  return getLegenda();
+  return gerarLegendaReal();
 }
 
 function getExampleCarrossel() {
-  return `---
-SLIDE 1 — [Tipo: Gancho]
-Não fale para o cliente:
-"Ok, aguardo seu retorno"
-(Teste uma das opções a seguir...)
-Visual: Fundo BRANCO | Texto preto | Quote em bold
-
----
-SLIDE 2 — [Tipo: Tensão/Contexto]
-Se por exemplo a cliente tivesse dito
-"vou falar com meu marido"...
-Pode até parecer inevitável, mas...
-Visual: Fundo PRETO | Texto branco | Frase bold em destaque
-
----
-SLIDE 3 — [Tipo: Opção 1]
-Tente trocar por...
-OPÇÃO 1
-"Super entendo! Só para eu te ajudar melhor, qual ponto você acha que ele pode ter dúvidas? Assim, já posso te dar algumas informações para facilitar sua conversa com ele."
-Visual: Fundo LARANJA #C84B1A | Texto branco | Label uppercase bold
-
----
-SLIDE 4 — [Tipo: Opção 2]
-OPÇÃO 2
-"Maravilha, é bem importante ele estar de acordo mesmo. Pra facilitar pra ti, vou listar aqui os principais benefícios para você mostrar pra ele."
-Visual: Fundo LARANJA #C84B1A | Texto branco
-
----
-SLIDE 5 — [Tipo: Opção 3]
-OPÇÃO 3
-"Você acha que até quando consegue conversar com ele? Posso te chamar amanhã às 14h para saber o que ele achou?"
-Visual: Fundo LARANJA #C84B1A | Texto branco
-
----
-SLIDE 6 — [Tipo: Opção 4]
-OPÇÃO 4
-"Caso vocês consigam decidir até [prazo], posso tentar garantir um bônus especial para vocês!"
-Visual: Fundo LARANJA #C84B1A | Texto branco
-
----
-SLIDE 7 — [Tipo: Autoridade/Produto]
-Nossos alunos do Engrene também têm acesso a um agente de IA que cria argumentos de venda e gera 3 modelos de respostas diferentes para cada objeção.
-Visual: Fundo branco + screenshot da ferramenta | "Engrene" em LARANJA #C84B1A
-
----
-SLIDE 8 — [Tipo: Lição]
-O atendimento é a continuação do marketing, quem é meu aluno sabe bem disso...
-Visual: Foto Suellen | Overlay branco | "marketing" em bold
-
----
-SLIDE 9 — [Tipo: CTA]
-E se você ainda não é meu aluno, vai já no link da bio e saiba mais o Engrene, minha formação de marketing para empreendedores.
-Agora me conta: qual das opções você usaria?
-Visual: Foto Suellen | Overlay branco | "Engrene" em LARANJA #C84B1A`;
+  // Mantido como fallback — não é usado como geração principal
+  return state.carrosselGerado || '';
 }
 
 function getMCPLog() {
@@ -1614,21 +1932,35 @@ function getMCPLogFull() {
 // ─── SLIDE EDITOR ───
 
 function buildSlidesEditor() {
-  const texto = state.carrosselGerado || getExampleCarrossel();
-  // Dividir em blocos por "---"
-  const blocos = texto.split(/\n---\n/).filter(b => b.trim());
-  state.slidesEditaveis = blocos.map((b, i) => ({ id: i, texto: b.trim() }));
+  // Se temos slidesData estruturado, usar ele diretamente
+  if (state.slidesData && state.slidesData.length > 0) {
+    state.slidesEditaveis = state.slidesData.map((s, i) => ({
+      id: i,
+      texto: `SLIDE ${String(i+1).padStart(2,'0')} — [Tipo: ${s.tipo.toUpperCase()}]\n${s.texto}\nVisual: ${{branco:'Fundo BRANCO',preto:'Fundo PRETO',laranja:'Fundo LARANJA #C84B1A',foto:'Fundo FOTO (overlay)'}[s.fundo]}`,
+      fundo: s.fundo,
+      tipo: s.tipo,
+    }));
+  } else {
+    const texto = state.carrosselGerado || '';
+    const blocos = texto.split(/\n---\n/).filter(b => b.trim());
+    state.slidesEditaveis = blocos.map((b, i) => ({ id: i, texto: b.trim(), fundo: 'branco', tipo: '' }));
+  }
+
+  const headerBg = {
+    branco:  'background: rgba(255,255,255,0.06)',
+    preto:   'background: #000',
+    laranja: 'background: rgba(200,75,26,0.3)',
+    foto:    'background: linear-gradient(135deg,rgba(200,75,26,0.3),rgba(0,0,0,0.3))',
+  };
 
   return state.slidesEditaveis.map((slide, i) => {
-    // Extrair primeira linha como título do slide
     const linhas = slide.texto.split('\n');
     const titulo = linhas[0].replace(/^---\s*/, '').trim();
-    const resto = linhas.slice(1).join('\n').trim();
-    const escapado = (slide.texto).replace(/`/g, '\\`').replace(/\$/g, '\\$');
+    const bg = headerBg[slide.fundo] || headerBg.branco;
 
     return `
       <div class="slide-edit-card" id="slide-card-${i}">
-        <div class="slide-edit-header">
+        <div class="slide-edit-header" style="${bg}">
           <span class="slide-edit-num">${String(i+1).padStart(2,'0')}</span>
           <span class="slide-edit-title">${titulo}</span>
         </div>
@@ -1695,6 +2027,33 @@ function copiarComando() {
     btn.textContent = 'COPIADO!';
     setTimeout(() => { btn.textContent = orig; }, 2000);
   });
+}
+
+// ─── SLIDES PREVIEW GRID (fase 7) ───
+function buildSlidesPreviewGrid() {
+  const slides = state.slidesData && state.slidesData.length > 0
+    ? state.slidesData
+    : (state.slidesEditaveis || []).map(s => ({ tipo: s.tipo || '', fundo: s.fundo || 'branco', texto: s.texto || '' }));
+
+  if (!slides.length) return '';
+
+  const cards = slides.map((s, i) => {
+    const num = String(i + 1).padStart(2, '0');
+    const tipoLabel = (s.tipo || '').toUpperCase().replace(/\d/g, '');
+    const textoPreview = (s.texto || '').replace(/\n/g, ' ').slice(0, 80) + ((s.texto || '').length > 80 ? '…' : '');
+    return `
+      <div class="slide-preview-card fundo-${s.fundo || 'branco'}">
+        <div class="slide-preview-num">${num}</div>
+        <div class="slide-preview-tipo">${tipoLabel}</div>
+        <div class="slide-preview-texto">${textoPreview.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div style="margin-bottom:8px">
+      <p style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--orange);margin-bottom:14px;">Prévia visual dos slides</p>
+      <div class="slides-preview-grid">${cards}</div>
+    </div>`;
 }
 
 // ─── INIT ───
