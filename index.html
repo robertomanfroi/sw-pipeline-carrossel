@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline Carrossel — @suellenwarmling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --orange: #C84B1A;
+    --orange-light: #E05A25;
+    --orange-pale: rgba(200,75,26,0.12);
+    --black: #0A0A0A;
+    --dark: #111111;
+    --card: #181818;
+    --border: rgba(255,255,255,0.07);
+    --cream: #FCE9D9;
+    --white: #F5F5F0;
+    --muted: rgba(245,245,240,0.45);
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: var(--font-body);
+    font-weight: 400;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── NOISE TEXTURE ─── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* ─── LAYOUT ─── */
+  .app {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar {
+    background: var(--dark);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-header {
+    padding: 36px 28px 28px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .brand-tag::before {
+    content: '';
+    width: 20px; height: 1px;
+    background: var(--orange);
+  }
+
+  .sidebar-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--white);
+  }
+
+  .sidebar-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* ─── PHASES NAV ─── */
+  .phases-nav {
+    padding: 20px 0;
+    flex: 1;
+  }
+
+  .phase-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 28px;
+    cursor: pointer;
+    transition: background 0.2s;
+    position: relative;
+  }
+  .phase-item:hover { background: rgba(255,255,255,0.03); }
+  .phase-item.active { background: var(--orange-pale); }
+  .phase-item.active::left {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--orange);
+  }
+  .phase-item.completed .phase-num {
+    background: var(--orange);
+    color: var(--white);
+    border-color: var(--orange);
+  }
+  .phase-item.active .phase-num {
+    border-color: var(--orange);
+    color: var(--orange);
+  }
+
+  .phase-num {
+    width: 28px; height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: all 0.2s;
+  }
+
+  .phase-info { flex: 1; }
+  .phase-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--white);
+    opacity: 0.7;
+    transition: opacity 0.2s;
+  }
+  .phase-item.active .phase-name { opacity: 1; }
+  .phase-item.completed .phase-name { opacity: 0.9; }
+  .phase-desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+
+  .phase-connector {
+    width: 1px;
+    height: 12px;
+    background: var(--border);
+    margin-left: 42px;
+  }
+
+  /* ─── SIDEBAR FOOTER ─── */
+  .sidebar-footer {
+    padding: 20px 28px;
+    border-top: 1px solid var(--border);
+  }
+
+  .progress-bar {
+    height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--orange), var(--orange-light));
+    border-radius: 2px;
+    transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+  }
+  .progress-text {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  /* ─── MAIN CONTENT ─── */
+  .main {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* ─── TOP BAR ─── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 48px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .phase-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .phase-badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--orange);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .topbar-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .btn {
+    padding: 9px 20px;
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    letter-spacing: 0.01em;
+  }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .btn-ghost:hover {
+    border-color: rgba(255,255,255,0.15);
+    color: var(--white);
+  }
+  .btn-primary {
+    background: var(--orange);
+    color: var(--white);
+  }
+  .btn-primary:hover {
+    background: var(--orange-light);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(200,75,26,0.35);
+  }
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* ─── CONTENT AREA ─── */
+  .content {
+    flex: 1;
+    padding: 52px 48px 48px;
+    max-width: 820px;
+  }
+
+  .phase-header {
+    margin-bottom: 44px;
+    animation: fadeSlideIn 0.4s ease;
+  }
+
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .phase-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 14px;
+  }
+
+  .phase-title {
+    font-family: var(--font-display);
+    font-size: 42px;
+    font-weight: 900;
+    line-height: 1.1;
+    color: var(--white);
+    margin-bottom: 14px;
+  }
+
+  .phase-title em {
+    font-style: italic;
+    color: var(--cream);
+  }
+
+  .phase-subtitle {
+    font-size: 15px;
+    color: var(--muted);
+    max-width: 520px;
+    line-height: 1.65;
+  }
+
+  /* ─── FORM ELEMENTS ─── */
+  .form-group {
+    margin-bottom: 28px;
+    animation: fadeSlideIn 0.4s ease;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .input, .textarea, .select {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--white);
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 14px 18px;
+    transition: all 0.2s;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  .input:focus, .textarea:focus, .select:focus {
+    border-color: var(--orange);
+    box-shadow: 0 0 0 3px rgba(200,75,26,0.12);
+  }
+  .input::placeholder, .textarea::placeholder {
+    color: rgba(245,245,240,0.2);
+  }
+  .textarea {
+    resize: vertical;
+    min-height: 120px;
+    line-height: 1.6;
+  }
+  .select option { background: var(--dark); }
+
+  /* ─── CHOICE CARDS ─── */
+  .choice-grid {
+    display: grid;
+    gap: 12px;
+  }
+  .choice-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .choice-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .choice-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .choice-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--orange-pale);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .choice-card:hover { border-color: rgba(200,75,26,0.35); }
+  .choice-card:hover::before { opacity: 1; }
+  .choice-card.selected {
+    border-color: var(--orange);
+    background: var(--orange-pale);
+  }
+  .choice-card.selected::before { opacity: 1; }
+
+  .choice-check {
+    width: 18px; height: 18px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    position: absolute;
+    top: 16px; right: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    transition: all 0.2s;
+  }
+  .choice-card.selected .choice-check {
+    background: var(--orange);
+    border-color: var(--orange);
+    color: white;
+  }
+
+  .choice-icon { font-size: 22px; margin-bottom: 10px; }
+  .choice-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+  .choice-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ─── GENERATED CONTENT ─── */
+  .generated-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .generated-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+
+  .generated-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--orange);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .generated-label::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--orange);
+  }
+
+  .copy-btn {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    background: none;
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .copy-btn:hover { color: var(--white); border-color: rgba(255,255,255,0.2); }
+
+  .generated-content {
+    padding: 24px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: rgba(245,245,240,0.85);
+    white-space: pre-wrap;
+    font-family: var(--font-body);
+    max-height: 380px;
+    overflow-y: auto;
+  }
+
+  .generated-content::-webkit-scrollbar { width: 4px; }
+  .generated-content::-webkit-scrollbar-track { background: transparent; }
+  .generated-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ─── SLIDE PREVIEW ─── */
+  .slides-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 8px;
+  }
+
+  .slide-preview {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .slide-preview:hover {
+    border-color: var(--orange);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .slide-preview.selected {
+    border-color: var(--orange);
+    box-shadow: 0 0 0 2px var(--orange);
+  }
+
+  .slide-thumb {
+    aspect-ratio: 4/5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 500;
+    position: relative;
+  }
+
+  .slide-num {
+    position: absolute;
+    top: 8px; left: 10px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    opacity: 0.5;
+  }
+
+  .slide-type-badge {
+    position: absolute;
+    top: 8px; right: 8px;
+    font-size: 8px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(0,0,0,0.3);
+    opacity: 0.7;
+  }
+
+  /* ─── MODEL CARDS ─── */
+  .model-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .model-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .model-card:hover { border-color: rgba(200,75,26,0.4); transform: translateY(-2px); }
+  .model-card.selected { border-color: var(--orange); }
+
+  .model-preview {
+    height: 140px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .model-info {
+    padding: 16px;
+  }
+  .model-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+  .model-slides {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--orange);
+    margin-bottom: 6px;
+  }
+  .model-desc {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ─── MODEL 1 PREVIEW ─── */
+  .m1-preview {
+    background: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    gap: 4px;
+  }
+  .m1-p1 { font-size: 7px; font-family: serif; color: #1a1a1a; font-weight: 400; }
+  .m1-p2 { font-size: 10px; font-family: serif; color: #1a1a1a; font-weight: 700; text-align: center; }
+  .m1-p3 { width: 60%; height: 20px; background: #C84B1A; border-radius: 3px; margin-top: 4px; display: flex; align-items: center; justify-content: center; }
+  .m1-p3 span { font-size: 6px; color: white; font-weight: 600; }
+
+  /* ─── MODEL 2 PREVIEW ─── */
+  .m2-preview {
+    position: relative;
+    background: linear-gradient(160deg, #1a0a03 0%, #3d1507 50%, #c84b1a55 100%);
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
+  }
+  .m2-overlay {
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(2px);
+    border-radius: 6px;
+    padding: 8px 10px;
+    width: 100%;
+  }
+  .m2-text { font-size: 8px; color: white; line-height: 1.4; font-family: 'DM Sans', sans-serif; }
+  .m2-text strong { font-weight: 700; }
+
+  /* ─── MODEL 3 PREVIEW ─── */
+  .m3-preview {
+    background: #f8f8f8;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+  }
+  .m3-img-slot {
+    height: 60px;
+    background: linear-gradient(135deg, #e0e0e0, #c8c8c8);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: #999;
+  }
+  .m3-text-slot {
+    font-size: 7px;
+    color: #333;
+    line-height: 1.5;
+  }
+
+  /* ─── CHECKPOINT BANNER ─── */
+  .checkpoint {
+    background: linear-gradient(135deg, rgba(200,75,26,0.1), rgba(200,75,26,0.05));
+    border: 1px solid rgba(200,75,26,0.25);
+    border-radius: 12px;
+    padding: 24px 28px;
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    margin-bottom: 28px;
+    animation: fadeSlideIn 0.4s ease;
+  }
+  .checkpoint-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .checkpoint-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+  .checkpoint-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ─── DELIVERY CARD ─── */
+  .delivery-card {
+    background: var(--card);
+    border: 1px solid var(--orange);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    animation: fadeSlideIn 0.5s ease;
+  }
+
+  .delivery-header {
+    background: var(--orange);
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .delivery-icon { font-size: 22px; }
+  .delivery-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+  }
+  .delivery-body {
+    padding: 24px;
+  }
+
+  .canva-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .canva-link:hover {
+    border-color: var(--orange);
+    background: var(--orange-pale);
+  }
+  .canva-link-icon { font-size: 20px; }
+  .canva-link-text { flex: 1; }
+  .canva-link-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 2px;
+  }
+  .canva-link-url {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--orange);
+  }
+  .canva-link-arrow { color: var(--muted); }
+
+  /* ─── LOADING STATE ─── */
+  .loading-dots {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+  }
+  .loading-dots span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--orange);
+    animation: dotPulse 1.4s infinite;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dotPulse {
+    0%,80%,100% { opacity: 0.2; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+
+  /* ─── DIVIDER ─── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 32px 0;
+  }
+
+  /* ─── TAG ─── */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+  .tag-orange { color: var(--orange); border-color: rgba(200,75,26,0.35); background: var(--orange-pale); }
+  .tag-muted { color: var(--muted); border-color: var(--border); }
+
+  /* ─── STEP INDICATOR (dentro de fase) ─── */
+  .step-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 28px;
+    background: var(--card);
+    padding: 3px;
+    border-radius: 8px;
+    width: fit-content;
+  }
+  .step-tab {
+    padding: 7px 18px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+  }
+  .step-tab.active {
+    background: var(--orange);
+    color: white;
+  }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { position: static; height: auto; }
+    .phase-title { font-size: 30px; }
+    .model-grid { grid-template-columns: 1fr 1fr; }
+    .slides-grid { grid-template-columns: repeat(2, 1fr); }
+    .content { padding: 32px 24px; }
+    .topbar { padding: 16px 24px; }
+  }
+
+  /* ─── ANIMATIONS ─── */
+  .phase-content { animation: fadeSlideIn 0.35s ease; }
+
+  /* ─── GANCHO OPTIONS ─── */
+  .gancho-option {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .gancho-option:hover { border-color: rgba(200,75,26,0.35); }
+  .gancho-option.selected { border-color: var(--orange); background: var(--orange-pale); }
+
+  .gancho-num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--orange);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .gancho-text {
+    font-size: 13px;
+    color: var(--white);
+    line-height: 1.55;
+  }
+  .gancho-metric {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--orange);
+    margin-top: 4px;
+  }
+
+  /* ─── FORMULA BADGE ─── */
+  .formula-badge {
+    background: var(--orange-pale);
+    border: 1px solid rgba(200,75,26,0.25);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+  .formula-badge strong { color: var(--orange); }
+  .formula-icon { font-size: 18px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ─── SIDEBAR ─── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="brand-tag">Pipeline v1.1</div>
+      <div class="sidebar-title">Fábrica de<br>Carrosseis</div>
+      <div class="sidebar-sub">@suellenwarmling · End-to-end</div>
+    </div>
+
+    <nav class="phases-nav" id="phasesNav">
+      <!-- injected by JS -->
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width:14%"></div>
+      </div>
+      <div class="progress-text" id="progressText">FASE 1 DE 7</div>
+    </div>
+  </aside>
+
+  <!-- ─── MAIN ─── -->
+  <main class="main">
+    <div class="topbar">
+      <div class="phase-badge">
+        <div class="phase-badge-dot"></div>
+        <span id="topbarLabel">Fase 1 — Tema</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" onclick="prevPhase()" id="btnPrev">← Voltar</button>
+        <button class="btn btn-primary" onclick="nextPhase()" id="btnNext">Avançar →</button>
+      </div>
+    </div>
+
+    <div class="content" id="mainContent">
+      <!-- injected by JS -->
+    </div>
+  </main>
+
+</div>
+
+<script>
+// ─── STATE ───
+const state = {
+  currentPhase: 1,
+  tema: '',
+  nicho: '',
+  objetivo: '',
+  gancho: '',
+  formula: '',
+  extensao: '',
+  voz: '',
+  textoAprovado: false,
+  modelo: '',
+  imagemOpcao: '',
+  carrosselGerado: '',
+  legendaGerada: '',
+  canvaLink: '',
+  modeloDesignId: ''
+};
+
+// ─── PHASES ───
+const phases = [
+  { num: 1, name: 'Tema & Gancho',      desc: 'Escolha ou sugira o tema' },
+  { num: 2, name: 'Extensão & Voz',     desc: 'Configure o carrossel' },
+  { num: 3, name: 'Geração de Texto',   desc: 'Criação automática dos slides' },
+  { num: 4, name: 'Aprovação de Texto', desc: 'Revise antes de montar' },
+  { num: 5, name: 'Modelo Canva',       desc: 'Selecione o template visual' },
+  { num: 6, name: 'Imagem',             desc: 'Upload automático se necessário' },
+  { num: 7, name: 'Entrega',            desc: 'Link Canva + legenda pronta' },
+];
+
+// ─── RENDER SIDEBAR ───
+function renderSidebar() {
+  const nav = document.getElementById('phasesNav');
+  nav.innerHTML = phases.map((p, i) => {
+    const status = p.num < state.currentPhase ? 'completed' : p.num === state.currentPhase ? 'active' : '';
+    return `
+      ${i > 0 ? '<div class="phase-connector"></div>' : ''}
+      <div class="phase-item ${status}" onclick="goToPhase(${p.num})">
+        <div class="phase-num">${p.num < state.currentPhase ? '✓' : p.num}</div>
+        <div class="phase-info">
+          <div class="phase-name">${p.name}</div>
+          <div class="phase-desc">${p.desc}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const pct = Math.round((state.currentPhase / phases.length) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `FASE ${state.currentPhase} DE ${phases.length}`;
+  document.getElementById('topbarLabel').textContent = `Fase ${state.currentPhase} — ${phases[state.currentPhase-1].name}`;
+
+  document.getElementById('btnPrev').style.display = state.currentPhase === 1 ? 'none' : '';
+  document.getElementById('btnNext').textContent = state.currentPhase === 7 ? '✓ Concluir' : 'Avançar →';
+}
+
+// ─── PHASE CONTENT ───
+function renderPhase() {
+  const content = document.getElementById('mainContent');
+  content.innerHTML = '';
+
+  const phase = state.currentPhase;
+  let html = '<div class="phase-content">';
+
+  if (phase === 1) {
+    html += `
+      <div class="phase-header">
+        <div class="phase-eyebrow">Fase 01 — Diagnóstico de Tema</div>
+        <h1 class="phase-title">O que vai <em>viralizar</em><br>agora?</h1>
+        <p class="phase-subtitle">Escolha um tema quente ou deixe o sistema sugerir com base no que está performando no perfil.</p>
+      </div>
+
+      <div class="form-group">
+        <label>Você tem um tema em mente?</label>
+        <div class="choice-grid cols-2">
+          <div class="choice-card ${state.tema === 'sim' ? 'selected' : ''}" onclick="select('tema','sim',this)">
+            <div class="choice-check">${state.tema === 'sim' ? '✓' : ''}</div>
+            <div class="choice-icon">💡</div>
+            <div class="choice-title">Sim, tenho um tema</div>
+            <div class="choice-desc">Evento real, polêmica ou situação concreta em mente</div>
+          </div>
+          <div class="choice-card ${state.tema === 'nao' ? 'selected' : ''}" onclick="select('tema','nao',this)">
+            <div class="choice-check">${state.tema === 'nao' ? '✓' : ''}</div>
+            <div class="choice-icon">🎯</div>
+            <div class="choice-title">Sugira para mim</div>
+            <div class="choice-desc">O sistema analisa o que tem maior chance de viralizar</div>
+          </div>
+        </div>
+      </div>
+
+      ${state.tema === 'sim' ? `
+      <div class="form-group">
+        <label>Qual é o tema / evento / polêmica?</label>
+        <textarea class="textarea" id="temaInput" placeholder="Ex: A festa de 15 anos luxuosa de uma família de empresários que viralizou no Instagram..." onchange="state.ganchoInput=this.value">${state.ganchoInput||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Nicho ou tipo de negócio</label>
+        <input class="input" id="nichoInput" placeholder="Ex: Lojas de roupas, salões de beleza, profissionais de saúde..." value="${state.nicho}" oninput="state.nicho=this.value">
+      </div>
+      ` : ''}
+
+      ${state.tema === 'nao' ? `
+      <div class="form-group">
+        <label>Nicho ou tipo de negócio</label>
+        <input class="input" id="nichoInput" placeholder="Ex: Lojas de roupas, confeitaria, clínica estética..." value="${state.nicho}" oninput="state.nicho=this.value">
+      </div>
+      <div class="form-group">
+        <label>Objetivo principal do carrossel</label>
+        <div class="choice-grid">
+          ${[
+            ['viralizar','🔥','Viralizar fora da base','Atingir pessoas que ainda não me seguem'],
+            ['comentarios','💬','Gerar comentários e debate','Alto ratio, polarização controlada'],
+            ['salvamentos','🔖','Gerar salvamentos','Conteúdo de referência e autoridade'],
+            ['vendas','💰','Gerar DMs e vendas','CTA com palavra-código para automação'],
+            ['autoridade','👑','Construir autoridade','Posicionamento no nicho'],
+          ].map(([val, icon, title, desc]) => `
+            <div class="choice-card ${state.objetivo===val?'selected':''}" onclick="select('objetivo','${val}',this)">
+              <div class="choice-check">${state.objetivo===val?'✓':''}</div>
+              <div class="choice-icon">${icon}</div>
+              <div class="choice-title">${title}</div>
+              <div class="choice-desc">${desc}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      ` : ''}
+    `;
+  }
+
+  else if (phase === 2) {
+    html += `
+      <div class="phase-header">
+        <div class="phase-eyebrow">Fase 02 — Configuração</div>
+        <h1 class="phase-title">Como <em>configurar</em><br>o carrossel?</h1>
+        <p class="phase-subtitle">Defina extensão e voz para moldar a geração de texto.</p>
+      </div>
+
+      <div class="form-group">
+        <label>Extensão do carrossel</label>
+        <div class="choice-grid cols-2">
+          <div class="choice-card ${state.extensao==='10'?'selected':''}" onclick="select('extensao','10',this)">
+            <div class="choice-check">${state.extensao==='10'?'✓':''}</div>
+            <div class="choice-icon">⚡</div>
+            <div class="choice-title">Até 10 slides</div>
+            <div class="choice-desc">Mais direto, maior taxa de conclusão de leitura</div>
+          </div>
+          <div class="choice-card ${state.extensao==='20'?'selected':''}" onclick="select('extensao','20',this)">
+            <div class="choice-check">${state.extensao==='20'?'✓':''}</div>
+            <div class="choice-icon">📖</div>
+            <div class="choice-title">Até 20 slides</div>
+            <div class="choice-desc">Mais completo, gera mais saves e autoridade</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Voz do perfil</label>
+        <div class="choice-grid cols-2">
+          <div class="choice-card ${state.voz==='pessoa'?'selected':''}" onclick="select('voz','pessoa',this)">
+            <div class="choice-check">${state.voz==='pessoa'?'✓':''}</div>
+            <div class="choice-icon">🙋‍♀️</div>
+            <div class="choice-title">Pessoa (1ª pessoa)</div>
+            <div class="choice-desc">"Eu aprendi", "eu descobri", conexão pessoal</div>
+          </div>
+          <div class="choice-card ${state.voz==='marca'?'selected':''}" onclick="select('voz','marca',this)">
+            <div class="choice-check">${state.voz==='marca'?'✓':''}</div>
+            <div class="choice-icon">🏢</div>
+            <div class="choice-title">Marca / Empresa</div>
+            <div class="choice-desc">"A gente", perspectiva institucional</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <p style="font-size:13px;color:var(--muted);">O sistema vai executar o diagnóstico interno (fórmula, virada, polarização, CTA) e criar o carrossel completo na próxima fase.</p>
+    `;
+  }
+
+  else if (phase === 3) {
+    const gerado = state.carrosselGerado;
+    html += `
+      <div class="phase-header">
+        <div class="phase-eyebrow">Fase 03 — Geração de Texto</div>
+        <h1 class="phase-title">Criando os <em>slides</em><br>do carrossel</h1>
+        <p class="phase-subtitle">O sistema aplica a fórmula validada e gera cada slide com visual descrito.</p>
+      </div>
+
+      ${!gerado ? `
+      <div class="formula-badge">
+        <span class="formula-icon">⚡</span>
+        <div>
+          <strong>Fórmula EPALC-CTA</strong> — Evento/Polêmica → Prints haters → Autoridade → Lição → CTA
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Fórmula dominante nos top 5 carrosseis do perfil</div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="gerarCarrossel()" style="width:100%;padding:16px;font-size:15px;border-radius:10px;">
+        ✦ Gerar Carrossel Completo
+      </button>
+      <div id="loadingGen" style="display:none">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+        <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px;">Aplicando fórmula e escrevendo slides...</p>
+      </div>
+      ` : `
+      <div class="generated-box">
+        <div class="generated-header">
+          <div class="generated-label">Carrossel gerado</div>
+          <button class="copy-btn" onclick="copyText('carrosselGerado')">COPIAR</button>
+        </div>
+        <div class="generated-content" id="carrosselContent">${gerado}</div>
+      </div>
+      `}
+    `;
+  }
+
+  else if (phase === 4) {
+    html += `
+      <div class="phase-header">
+        <div class="phase-eyebrow">Fase 04 — Checkpoint Humano</div>
+        <h1 class="phase-title">Texto <em>aprovado</em><br>para montar?</h1>
+        <p class="phase-subtitle">Revise o carrossel antes de enviar ao Canva. Você pode pedir ajustes aqui.</p>
+      </div>
+
+      <div class="checkpoint">
+        <div class="checkpoint-icon">🛑</div>
+        <div>
+          <div class="checkpoint-title">Aprovação humana obrigatória</div>
+          <div class="checkpoint-desc">O Canva só é montado após sua aprovação explícita. Se quiser ajustar algum slide, use o campo abaixo antes de aprovar.</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Ajustes (opcional)</label>
+        <textarea class="textarea" placeholder="Ex: Refaz o gancho, muda o CTA, deixa mais direto o slide 3..." style="min-height:80px" id="ajustesInput"></textarea>
+      </div>
+
+      <div class="choice-grid cols-2" style="margin-top:8px">
+        <div class="choice-card ${state.textoAprovado===false&&state.textoAprovado!==''?'':state.textoAprovado?'selected':''}" onclick="state.textoAprovado=true;renderPhase()">
+          <div class="choice-check">${state.textoAprovado?'✓':''}</div>
+          <div class="choice-icon">✅</div>
+          <div class="choice-title">Aprovar texto</div>
+          <div class="choice-desc">Seguir para montagem no Canva</div>
+        </div>
+        <div class="choice-card" onclick="solicitarAjuste()">
+          <div class="choice-icon">✏️</div>
+          <div class="choice-title">Solicitar ajuste</div>
+          <div class="choice-desc">Aplicar feedback e rever</div>
+        </div>
+      </div>
+    `;
+  }
+
+  else if (phase === 5) {
+    html += `
+      <div class="phase-header">
+        <div class="phase-eyebrow">Fase 05 — Seleção de Modelo</div>
+        <h1 class="phase-title">Qual <em>template</em><br>visual usar?</h1>
+        <p class="phase-subtitle">Cada modelo tem uma estrutura visual e propósito diferente. O sistema recomenda baseado na fórmula escolhida.</p>
+      </div>
+
+      <div class="model-grid">
+
+        <div class="model-card ${state.modelo==='1'?'selected':''}" onclick="selectModel('1')">
+          <div class="model-preview m1-preview">
+            <div class="m1-p1">SUELLEN WARMLING</div>
+            <div class="m1-p2">"Ok, aguardo<br>seu retorno"</div>
+            <div class="m1-p3"><span>OPÇÃO 1 →</span></div>
+          </div>
+          <div class="model-info">
+            <div class="model-name">Modelo 1</div>
+            <div class="model-slides">9 SLIDES</div>
+            <div class="model-desc">Objeção → Scripts numerados → CTA produto. Sem imagem externa.</div>
+          </div>
+        </div>
+
+        <div class="model-card ${state.modelo==='2'?'selected':''}" onclick="selectModel('2')">
+          <div class="model-preview m2-preview">
+            <div class="m2-overlay">
+              <div class="m2-text">Ivete não sobe no trio pensando em quem <strong>não gosta</strong> de Carnaval...</div>
+            </div>
+          </div>
+          <div class="model-info">
+            <div class="model-name">Modelo 2</div>
+            <div class="model-slides">10 SLIDES</div>
+            <div class="model-desc">Analogias com famosos → Lição → CTA. Requer 6 imagens de busca.</div>
+          </div>
+        </div>
+
+        <div class="model-card ${state.modelo==='3'?'selected':''}" onclick="selectModel('3')">
+          <div class="model-preview m3-preview">
+            <div class="m3-img-slot">📸 print real</div>
+            <div class="m3-text-slot">Caso real com prints reais do WhatsApp ou stories...</div>
+          </div>
+          <div class="model-info">
+            <div class="model-name">Modelo 3</div>
+            <div class="model-slides">13 SLIDES</div>
+            <div class="model-desc">Caso real → Prints → Solução → CTA. Requer prints do cliente.</div>
+          </div>
+        </div>
+
+      </div>
+
+      ${state.modelo ? `
+      <div style="margin-top:20px">
+        ${state.modelo === '1' ? '<div class="tag tag-orange">✓ Sem imagens externas necessárias</div>' : ''}
+        ${state.modelo === '2' ? `
+          <div class="formula-badge" style="margin-top:0">
+            <span class="formula-icon">🖼️</span>
+            <div>
+              <strong>6 imagens necessárias</strong> — uma por analogia nos slides 1-6
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">O sistema vai buscar automaticamente via web após você definir os famosos/marcas</div>
+            </div>
+          </div>
+        ` : ''}
+        ${state.modelo === '3' ? `
+          <div class="formula-badge" style="margin-top:0">
+            <span class="formula-icon">📱</span>
+            <div>
+              <strong>Prints reais necessários</strong> — slides 2-8 requerem imagens do caso
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">Você pode fornecer prints ou o sistema buscará imagens ilustrativas</div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+      ` : ''}
+    `;
+  }
+
+  else if (phase === 6) {
+    html += `
+      <div class="phase-header">
+        <div class="phase-eyebrow">Fase 06 — Montagem Canva</div>
+        <h1 class="phase-title">Montando no <em>Canva</em><br>via MCP</h1>
+        <p class="phase-subtitle">O sistema está editando o template de trabalho com o texto aprovado.</p>
+      </div>
+
+      <div class="checkpoint">
+        <div class="checkpoint-icon">⚙️</div>
+        <div>
+          <div class="checkpoint-title">Processo automático via Canva MCP</div>
+          <div class="checkpoint-desc">
+            O agente executa: <strong>start-editing-transaction</strong> → substituição de todos os textos por slide → inserção de imagens (se modelo 2 ou 3) → geração de preview para aprovação visual.
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Template sendo editado</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="tag tag-orange">
+            ${state.modelo === '1' ? 'DAHE5MATRwk — Modelo 1' : state.modelo === '2' ? 'DAHE5Fele2U — Modelo 2' : 'DAHE5Owuqkk — Modelo 3'}
+          </div>
+          <div class="tag tag-muted">NUNCA editar template original</div>
+        </div>
+      </div>
+
+      <div class="generated-box">
+        <div class="generated-header">
+          <div class="generated-label">Log de operações MCP</div>
+          <span class="tag tag-muted" style="font-size:9px">SIMULAÇÃO</span>
+        </div>
+        <div class="generated-content" style="font-family:var(--font-mono);font-size:12px;line-height:2;max-height:260px">${getMCPLog()}</div>
+      </div>
+
+      <div style="margin-top:16px">
+        <button class="btn btn-primary" onclick="simularMontagem()" style="width:100%;padding:14px">
+          ▶ Simular Montagem Completa
+        </button>
+      </div>
+    `;
+  }
+
+  else if (phase === 7) {
+    html += `
+      <div class="phase-header">
+        <div class="phase-eyebrow">Fase 07 — Entrega</div>
+        <h1 class="phase-title">Carrossel <em>pronto</em><br>para postar! 🎉</h1>
+        <p class="phase-subtitle">Acesse o link do Canva, exporte e poste. A legenda já está pronta para copiar.</p>
+      </div>
+
+      <div class="delivery-card">
+        <div class="delivery-header">
+          <div class="delivery-icon">🎨</div>
+          <div class="delivery-title">Design salvo no Canva</div>
+        </div>
+        <div class="delivery-body">
+          <a class="canva-link" href="https://www.canva.com/design/${getModelId()}/edit" target="_blank">
+            <div class="canva-link-icon">🔗</div>
+            <div class="canva-link-text">
+              <div class="canva-link-label">Abrir no Canva para exportar</div>
+              <div class="canva-link-url">canva.com/design/${getModelId()}/edit</div>
+            </div>
+            <div class="canva-link-arrow">↗</div>
+          </a>
+          <p style="font-size:12px;color:var(--muted)">No Canva: Compartilhar → Baixar → PNG ou JPG → Todas as páginas → Baixar</p>
+        </div>
+      </div>
+
+      <div class="generated-box">
+        <div class="generated-header">
+          <div class="generated-label">Legenda sugerida</div>
+          <button class="copy-btn" onclick="copyLegenda()">COPIAR</button>
+        </div>
+        <div class="generated-content" id="legendaContent">${getLegenda()}</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div style="background:var(--orange-pale);border:1px solid rgba(200,75,26,0.25);border-radius:10px;padding:18px 20px">
+        <p style="font-size:13px;font-weight:600;margin-bottom:6px">📌 Após postar</p>
+        <p style="font-size:12px;color:var(--muted)">Avise o agente que postou para ele <strong>redefinir o template de trabalho</strong> para os textos originais, deixando-o pronto para o próximo carrossel.</p>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn btn-ghost" style="font-size:12px" onclick="reiniciar()">+ Novo carrossel</button>
+          <button class="btn btn-ghost" style="font-size:12px" onclick="alert('Redefinir template ['+state.modelo+'] — Execute o comando no agente pipeline-carrossel-suellen')">Redefinir template</button>
+        </div>
+      </div>
+    `;
+  }
+
+  html += '</div>';
+  content.innerHTML = html;
+}
+
+// ─── HELPERS ───
+function select(key, val, el) {
+  state[key] = val;
+  renderPhase();
+  renderSidebar();
+}
+
+function selectModel(num) {
+  state.modelo = num;
+  const ids = { '1': 'DAHE5MATRwk', '2': 'DAHE5Fele2U', '3': 'DAHE5Owuqkk' };
+  state.modeloDesignId = ids[num];
+  renderPhase();
+  renderSidebar();
+}
+
+function goToPhase(num) {
+  if (num <= state.currentPhase) {
+    state.currentPhase = num;
+    renderAll();
+  }
+}
+
+function nextPhase() {
+  if (state.currentPhase < phases.length) {
+    state.currentPhase++;
+    renderAll();
+    document.querySelector('.content').scrollTop = 0;
+    window.scrollTo(0,0);
+  }
+}
+
+function prevPhase() {
+  if (state.currentPhase > 1) {
+    state.currentPhase--;
+    renderAll();
+    window.scrollTo(0,0);
+  }
+}
+
+function renderAll() {
+  renderSidebar();
+  renderPhase();
+}
+
+function gerarCarrossel() {
+  document.getElementById('loadingGen').style.display = 'block';
+  setTimeout(() => {
+    state.carrosselGerado = getExampleCarrossel();
+    state.legendaGerada = getLegendaGerada();
+    renderPhase();
+  }, 1800);
+}
+
+function solicitarAjuste() {
+  const ajuste = document.getElementById('ajustesInput')?.value;
+  if (ajuste) {
+    alert('Ajuste registrado: "' + ajuste + '"\n\nNo agente real, o texto seria regenerado com este feedback antes de mostrar novamente para aprovação.');
+  }
+  state.currentPhase = 3;
+  renderAll();
+}
+
+function simularMontagem() {
+  const log = document.getElementById('mainContent').querySelector('.generated-content');
+  if (log) {
+    log.innerHTML = getMCPLogFull();
+    log.style.color = '#4ade80';
+  }
+}
+
+function copyText(key) {
+  navigator.clipboard.writeText(state[key] || '').then(() => {
+    const btn = event.target;
+    btn.textContent = 'COPIADO!';
+    setTimeout(() => btn.textContent = 'COPIAR', 2000);
+  });
+}
+
+function copyLegenda() {
+  navigator.clipboard.writeText(getLegenda()).then(() => {
+    const btn = event.target;
+    btn.textContent = 'COPIADO!';
+    setTimeout(() => btn.textContent = 'COPIAR', 2000);
+  });
+}
+
+function reiniciar() {
+  Object.assign(state, {
+    currentPhase: 1, tema: '', nicho: '', objetivo: '', gancho: '',
+    formula: '', extensao: '', voz: '', textoAprovado: false,
+    modelo: '', carrosselGerado: '', legendaGerada: '', canvaLink: '', modeloDesignId: ''
+  });
+  renderAll();
+  window.scrollTo(0,0);
+}
+
+function getModelId() {
+  return state.modeloDesignId || 'DAHE5MATRwk';
+}
+
+function getLegenda() {
+  return state.legendaGerada || `Viram esse atendimento, meus caros empreendedores? 👀
+
+A forma como você responde uma objeção no WhatsApp pode ser a diferença entre perder e fechar uma venda. "Vou falar com meu marido" não precisa ser fim de conversa.
+
+Qual das opções você já usa? Conta nos comentários! 👇
+
+Comente SCRIPT e eu te mando meu guia completo de respostas para as 10 objeções mais comuns no seu nicho.
+
+#empreendedorismo #negocioslocais #vendas #atendimento #suellenwarmling #whatsappbusiness`;
+}
+
+function getLegendaGerada() {
+  return getLegenda();
+}
+
+function getExampleCarrossel() {
+  return `---
+SLIDE 1 — [Tipo: Gancho]
+Não fale para o cliente:
+"Ok, aguardo seu retorno"
+(Teste uma das opções a seguir...)
+Visual: Fundo BRANCO | Texto preto | Quote em bold
+
+---
+SLIDE 2 — [Tipo: Tensão/Contexto]
+Se por exemplo a cliente tivesse dito
+"vou falar com meu marido"...
+Pode até parecer inevitável, mas...
+Visual: Fundo PRETO | Texto branco | Frase bold em destaque
+
+---
+SLIDE 3 — [Tipo: Opção 1]
+Tente trocar por...
+OPÇÃO 1
+"Super entendo! Só para eu te ajudar melhor, qual ponto você acha que ele pode ter dúvidas? Assim, já posso te dar algumas informações para facilitar sua conversa com ele."
+Visual: Fundo LARANJA #C84B1A | Texto branco | Label uppercase bold
+
+---
+SLIDE 4 — [Tipo: Opção 2]
+OPÇÃO 2
+"Maravilha, é bem importante ele estar de acordo mesmo. Pra facilitar pra ti, vou listar aqui os principais benefícios para você mostrar pra ele."
+Visual: Fundo LARANJA #C84B1A | Texto branco
+
+---
+SLIDE 5 — [Tipo: Opção 3]
+OPÇÃO 3
+"Você acha que até quando consegue conversar com ele? Posso te chamar amanhã às 14h para saber o que ele achou?"
+Visual: Fundo LARANJA #C84B1A | Texto branco
+
+---
+SLIDE 6 — [Tipo: Opção 4]
+OPÇÃO 4
+"Caso vocês consigam decidir até [prazo], posso tentar garantir um bônus especial para vocês!"
+Visual: Fundo LARANJA #C84B1A | Texto branco
+
+---
+SLIDE 7 — [Tipo: Autoridade/Produto]
+Nossos alunos do Engrene também têm acesso a um agente de IA que cria argumentos de venda e gera 3 modelos de respostas diferentes para cada objeção.
+Visual: Fundo branco + screenshot da ferramenta | "Engrene" em LARANJA #C84B1A
+
+---
+SLIDE 8 — [Tipo: Lição]
+O atendimento é a continuação do marketing, quem é meu aluno sabe bem disso...
+Visual: Foto Suellen | Overlay branco | "marketing" em bold
+
+---
+SLIDE 9 — [Tipo: CTA]
+E se você ainda não é meu aluno, vai já no link da bio e saiba mais o Engrene, minha formação de marketing para empreendedores.
+Agora me conta: qual das opções você usaria?
+Visual: Foto Suellen | Overlay branco | "Engrene" em LARANJA #C84B1A`;
+}
+
+function getMCPLog() {
+  return `<span style="color:var(--orange)">→</span> start-editing-transaction(DAHE5MATRwk)
+<span style="color:var(--muted)">  transaction_id: aguardando...</span>
+<span style="color:var(--muted)">  richtexts: mapeados</span>
+<span style="color:var(--muted)">  fills: identificados</span>`;
+}
+
+function getMCPLogFull() {
+  return `<span style="color:#4ade80">✓</span> start-editing-transaction(${state.modeloDesignId||'DAHE5MATRwk'})
+  transaction_id: 1326808059744986980
+  pages: ${state.modelo==='3'?13:state.modelo==='2'?10:9} páginas mapeadas
+
+<span style="color:#4ade80">✓</span> perform-editing-operations — Slide 1 (gancho)
+  replace_text: PBPMnL4QyG8Mlm7W-LBCxHSbYzrLKYTS7
+
+<span style="color:#4ade80">✓</span> perform-editing-operations — Slide 2 (contexto)
+  replace_text: PBCnPdyPV1zxB9PZ-LBmyNDZGbvCp9dsy
+
+<span style="color:#4ade80">✓</span> perform-editing-operations — Slides 3-6 (opções)
+  replace_text: [4 elementos] — labels + scripts
+
+<span style="color:#4ade80">✓</span> perform-editing-operations — Slides 7-9 (auth + CTA)
+  replace_text: [3 elementos]
+  [PROTEGIDO] SUELLEN WARMLING — ignorado
+
+<span style="color:#4ade80">✓</span> commit-editing-transaction()
+  status: saved
+  link: canva.com/design/${state.modeloDesignId||'DAHE5MATRwk'}/edit
+
+<span style="color:#4ade80">★</span> MONTAGEM CONCLUÍDA`;
+}
+
+// ─── INIT ───
+renderAll();
+</script>
+</body>
+</html>
