@@ -766,6 +766,58 @@
     40% { opacity: 1; transform: scale(1); }
   }
 
+  /* ─── SLIDE EDITOR CARDS ─── */
+  .slide-edit-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .slide-edit-card:focus-within {
+    border-color: var(--orange);
+  }
+  .slide-edit-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+  }
+  .slide-edit-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--orange);
+    background: var(--orange-pale);
+    padding: 2px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .slide-edit-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .slide-edit-textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--white);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 14px 16px;
+    resize: vertical;
+    min-height: 90px;
+  }
+  .slide-edit-textarea::placeholder { color: var(--muted); }
+
   /* ─── DIVIDER ─── */
   .divider {
     height: 1px;
@@ -1144,35 +1196,30 @@ function renderPhase() {
     html += `
       <div class="phase-header">
         <div class="phase-eyebrow">Fase 04 — Checkpoint Humano</div>
-        <h1 class="phase-title">Texto <em>aprovado</em><br>para montar?</h1>
-        <p class="phase-subtitle">Revise o carrossel antes de enviar ao Canva. Você pode pedir ajustes aqui.</p>
+        <h1 class="phase-title">Revise e <em>edite</em><br>o texto aqui</h1>
+        <p class="phase-subtitle">Edite diretamente o texto de qualquer slide. Quando estiver pronto, clique em Aprovar.</p>
       </div>
 
       <div class="checkpoint">
-        <div class="checkpoint-icon">🛑</div>
+        <div class="checkpoint-icon">✏️</div>
         <div>
-          <div class="checkpoint-title">Aprovação humana obrigatória</div>
-          <div class="checkpoint-desc">O Canva só é montado após sua aprovação explícita. Se quiser ajustar algum slide, use o campo abaixo antes de aprovar.</div>
+          <div class="checkpoint-title">Edição inline habilitada</div>
+          <div class="checkpoint-desc">Clique em qualquer slide abaixo para editar o texto diretamente. As alterações são salvas em tempo real.</div>
         </div>
       </div>
 
-      <div class="form-group">
-        <label>Ajustes (opcional)</label>
-        <textarea class="textarea" placeholder="Ex: Refaz o gancho, muda o CTA, deixa mais direto o slide 3..." style="min-height:80px" id="ajustesInput"></textarea>
+      <div id="slidesEditor" style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px">
+        ${buildSlidesEditor()}
       </div>
 
-      <div class="choice-grid cols-2" style="margin-top:8px">
-        <div class="choice-card ${state.textoAprovado===false&&state.textoAprovado!==''?'':state.textoAprovado?'selected':''}" onclick="state.textoAprovado=true;renderPhase()">
-          <div class="choice-check">${state.textoAprovado?'✓':''}</div>
-          <div class="choice-icon">✅</div>
-          <div class="choice-title">Aprovar texto</div>
-          <div class="choice-desc">Seguir para montagem no Canva</div>
-        </div>
-        <div class="choice-card" onclick="solicitarAjuste()">
-          <div class="choice-icon">✏️</div>
-          <div class="choice-title">Solicitar ajuste</div>
-          <div class="choice-desc">Aplicar feedback e rever</div>
-        </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary" style="padding:12px 28px;font-size:14px" onclick="aprovarTexto()">
+          ✅ Aprovar e ir para o Canva
+        </button>
+        <button class="btn btn-ghost" style="font-size:13px" onclick="salvarEdicoes()">
+          💾 Salvar edições
+        </button>
+        <span id="savedMsg" style="font-size:12px;color:var(--orange);opacity:0;transition:opacity 0.3s"></span>
       </div>
     `;
   }
@@ -1298,47 +1345,58 @@ function renderPhase() {
   }
 
   else if (phase === 7) {
+    const modelNum = state.modelo || '1';
+    const modelId = getModelId();
     html += `
       <div class="phase-header">
         <div class="phase-eyebrow">Fase 07 — Entrega</div>
         <h1 class="phase-title">Carrossel <em>pronto</em><br>para postar! 🎉</h1>
-        <p class="phase-subtitle">Acesse o link do Canva, exporte e poste. A legenda já está pronta para copiar.</p>
+        <p class="phase-subtitle">Link Canva, texto completo dos slides e legenda — tudo pronto para copiar e usar.</p>
       </div>
 
+      <!-- CANVA LINK -->
       <div class="delivery-card">
         <div class="delivery-header">
           <div class="delivery-icon">🎨</div>
-          <div class="delivery-title">Design salvo no Canva</div>
+          <div class="delivery-title">Design montado no Canva — Modelo ${modelNum}</div>
         </div>
         <div class="delivery-body">
-          <a class="canva-link" href="https://www.canva.com/design/${getModelId()}/edit" target="_blank">
+          <a class="canva-link" href="https://www.canva.com/design/${modelId}/edit" target="_blank">
             <div class="canva-link-icon">🔗</div>
             <div class="canva-link-text">
               <div class="canva-link-label">Abrir no Canva para exportar</div>
-              <div class="canva-link-url">canva.com/design/${getModelId()}/edit</div>
+              <div class="canva-link-url">canva.com/design/${modelId}/edit</div>
             </div>
             <div class="canva-link-arrow">↗</div>
           </a>
-          <p style="font-size:12px;color:var(--muted)">No Canva: Compartilhar → Baixar → PNG ou JPG → Todas as páginas → Baixar</p>
+          <p style="font-size:12px;color:var(--muted)">No Canva: <strong>Compartilhar → Baixar → PNG → Todas as páginas → Baixar</strong></p>
         </div>
       </div>
 
-      <div class="generated-box">
+      <!-- TEXTO DOS SLIDES -->
+      <div class="generated-box" style="margin-bottom:16px">
         <div class="generated-header">
-          <div class="generated-label">Legenda sugerida</div>
+          <div class="generated-label">Texto completo dos slides</div>
+          <button class="copy-btn" onclick="copyCarrossel()">COPIAR TUDO</button>
+        </div>
+        <div class="generated-content" id="carrosselFinal">${getTextoFinalSlides()}</div>
+      </div>
+
+      <!-- LEGENDA -->
+      <div class="generated-box" style="margin-bottom:24px">
+        <div class="generated-header">
+          <div class="generated-label">Legenda pronta para postar</div>
           <button class="copy-btn" onclick="copyLegenda()">COPIAR</button>
         </div>
-        <div class="generated-content" id="legendaContent">${getLegenda()}</div>
+        <div class="generated-content" id="legendaFinal">${getLegenda()}</div>
       </div>
-
-      <div class="divider"></div>
 
       <div style="background:var(--orange-pale);border:1px solid rgba(200,75,26,0.25);border-radius:10px;padding:18px 20px">
         <p style="font-size:13px;font-weight:600;margin-bottom:6px">📌 Após postar</p>
-        <p style="font-size:12px;color:var(--muted)">Avise o agente que postou para ele <strong>redefinir o template de trabalho</strong> para os textos originais, deixando-o pronto para o próximo carrossel.</p>
+        <p style="font-size:12px;color:var(--muted)">Avise o agente que postou para ele <strong>redefinir o template de trabalho</strong> e deixar pronto para o próximo carrossel.</p>
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-          <button class="btn btn-ghost" style="font-size:12px" onclick="reiniciar()">+ Novo carrossel</button>
-          <button class="btn btn-ghost" style="font-size:12px" onclick="alert('Redefinir template ['+state.modelo+'] — Execute o comando no agente pipeline-carrossel-suellen')">Redefinir template</button>
+          <button class="btn btn-primary" style="font-size:12px;padding:8px 18px" onclick="reiniciar()">+ Novo carrossel</button>
+          <button class="btn btn-ghost" style="font-size:12px" onclick="copiarComando()">Copiar comando: Redefinir template ${modelNum}</button>
         </div>
       </div>
     `;
@@ -1551,6 +1609,92 @@ function getMCPLogFull() {
   link: canva.com/design/${state.modeloDesignId||'DAHE5MATRwk'}/edit
 
 <span style="color:#4ade80">★</span> MONTAGEM CONCLUÍDA`;
+}
+
+// ─── SLIDE EDITOR ───
+
+function buildSlidesEditor() {
+  const texto = state.carrosselGerado || getExampleCarrossel();
+  // Dividir em blocos por "---"
+  const blocos = texto.split(/\n---\n/).filter(b => b.trim());
+  state.slidesEditaveis = blocos.map((b, i) => ({ id: i, texto: b.trim() }));
+
+  return state.slidesEditaveis.map((slide, i) => {
+    // Extrair primeira linha como título do slide
+    const linhas = slide.texto.split('\n');
+    const titulo = linhas[0].replace(/^---\s*/, '').trim();
+    const resto = linhas.slice(1).join('\n').trim();
+    const escapado = (slide.texto).replace(/`/g, '\\`').replace(/\$/g, '\\$');
+
+    return `
+      <div class="slide-edit-card" id="slide-card-${i}">
+        <div class="slide-edit-header">
+          <span class="slide-edit-num">${String(i+1).padStart(2,'0')}</span>
+          <span class="slide-edit-title">${titulo}</span>
+        </div>
+        <textarea
+          class="slide-edit-textarea"
+          id="slide-textarea-${i}"
+          rows="5"
+          oninput="state.slidesEditaveis[${i}].texto=this.value"
+        >${slide.texto.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+      </div>`;
+  }).join('');
+}
+
+function salvarEdicoes() {
+  // Ler todas as textareas e salvar no state
+  if (state.slidesEditaveis) {
+    state.slidesEditaveis.forEach((slide, i) => {
+      const el = document.getElementById('slide-textarea-' + i);
+      if (el) slide.texto = el.value;
+    });
+    state.carrosselGerado = state.slidesEditaveis.map(s => s.texto).join('\n---\n');
+  }
+  const msg = document.getElementById('savedMsg');
+  if (msg) {
+    msg.style.opacity = '1';
+    setTimeout(() => { msg.style.opacity = '0'; }, 2200);
+  }
+}
+
+function aprovarTexto() {
+  salvarEdicoes();
+  state.textoAprovado = true;
+  nextPhase();
+}
+
+function copyCarrossel() {
+  const texto = getTextoFinalSlides();
+  navigator.clipboard.writeText(texto).then(() => {
+    const btn = event.target;
+    btn.textContent = 'COPIADO!';
+    btn.style.background = 'var(--orange)';
+    btn.style.color = 'white';
+    setTimeout(() => {
+      btn.textContent = 'COPIAR TUDO';
+      btn.style.background = '';
+      btn.style.color = '';
+    }, 2000);
+  });
+}
+
+function getTextoFinalSlides() {
+  if (state.slidesEditaveis && state.slidesEditaveis.length > 0) {
+    return state.slidesEditaveis.map(s => s.texto).join('\n\n---\n\n');
+  }
+  return state.carrosselGerado || getExampleCarrossel();
+}
+
+function copiarComando() {
+  const modelo = state.modelo || '1';
+  const cmd = `Redefinir template ${modelo}`;
+  navigator.clipboard.writeText(cmd).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = 'COPIADO!';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  });
 }
 
 // ─── INIT ───
