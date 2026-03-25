@@ -954,6 +954,86 @@
   .slide-preview-num  { font-family: monospace; font-size: 10px; opacity: 0.5; }
   .slide-preview-tipo { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; }
   .slide-preview-texto { font-size: 11px; line-height: 1.5; }
+
+  /* ─── PROMPT BOX (fase 3) ─── */
+  .prompt-box {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(200,75,26,0.4);
+    border-radius: 12px;
+    padding: 20px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--white);
+    white-space: pre-wrap;
+    margin-bottom: 16px;
+    user-select: all;
+  }
+
+  .steps-guide {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 24px 0;
+  }
+  .step-item {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 28px; height: 28px;
+    background: var(--orange);
+    color: white;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .step-text { font-size: 13px; color: var(--white); padding-top: 4px; line-height: 1.5; }
+  .step-text strong { color: var(--orange); }
+
+  /* ─── PASTE AREA (fase 4) ─── */
+  #pasteArea {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--white);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 16px 18px;
+    min-height: 220px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  #pasteArea:focus {
+    border-color: var(--orange);
+    box-shadow: 0 0 0 3px rgba(200,75,26,0.12);
+  }
+  #pasteArea::placeholder { color: rgba(245,245,240,0.2); }
+
+  /* ─── CANVA LINK INPUT (fase 7) ─── */
+  #canvaLinkInput {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--white);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 14px 18px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 12px;
+  }
+  #canvaLinkInput:focus {
+    border-color: var(--orange);
+    box-shadow: 0 0 0 3px rgba(200,75,26,0.12);
+  }
+  #canvaLinkInput::placeholder { color: rgba(245,245,240,0.2); }
 </style>
 </head>
 <body>
@@ -963,9 +1043,9 @@
   <!-- ─── SIDEBAR ─── -->
   <aside class="sidebar">
     <div class="sidebar-header">
-      <div class="brand-tag">Pipeline v1.1</div>
+      <div class="brand-tag">Pipeline v2.0</div>
       <div class="sidebar-title">Fábrica de<br>Carrosseis</div>
-      <div class="sidebar-sub">@suellenwarmling · End-to-end</div>
+      <div class="sidebar-sub">@suellenwarmling · Híbrido + Claude Code</div>
     </div>
 
     <nav class="phases-nav" id="phasesNav">
@@ -1009,27 +1089,27 @@ const state = {
   objetivo: '',
   gancho: '',
   ganchoInput: '',
-  formula: '',
   extensao: '',
   voz: '',
   textoAprovado: false,
   modelo: '',
-  imagemOpcao: '',
   carrosselGerado: '',
   legendaGerada: '',
   canvaLink: '',
   modeloDesignId: '',
-  slidesData: []
+  slidesData: [],
+  slidesEditaveis: [],
+  linkConfirmado: false,
 };
 
 // ─── PHASES ───
 const phases = [
   { num: 1, name: 'Tema & Gancho',      desc: 'Escolha ou sugira o tema' },
   { num: 2, name: 'Extensão & Voz',     desc: 'Configure o carrossel' },
-  { num: 3, name: 'Geração de Texto',   desc: 'Criação automática dos slides' },
-  { num: 4, name: 'Aprovação de Texto', desc: 'Revise antes de montar' },
+  { num: 3, name: 'Prompt Claude Code', desc: 'Copie e cole no Claude Code' },
+  { num: 4, name: 'Cole o Texto',       desc: 'Texto gerado pelo agente' },
   { num: 5, name: 'Modelo Canva',       desc: 'Selecione o template visual' },
-  { num: 6, name: 'Imagem',             desc: 'Upload automático se necessário' },
+  { num: 6, name: 'Montagem Canva',     desc: 'Comando de montagem via MCP' },
   { num: 7, name: 'Entrega',            desc: 'Link Canva + legenda pronta' },
 ];
 
@@ -1067,6 +1147,7 @@ function renderPhase() {
   const phase = state.currentPhase;
   let html = '<div class="phase-content">';
 
+  // ─── FASE 1 ───
   if (phase === 1) {
     html += `
       <div class="phase-header">
@@ -1096,7 +1177,7 @@ function renderPhase() {
       ${state.tema === 'sim' ? `
       <div class="form-group">
         <label>Qual é o tema / evento / polêmica?</label>
-        <textarea class="textarea" id="temaInput" placeholder="Ex: A festa de 15 anos luxuosa de uma família de empresários que viralizou no Instagram..." onchange="state.ganchoInput=this.value">${state.ganchoInput||''}</textarea>
+        <textarea class="textarea" id="temaInput" placeholder="Ex: A festa de 15 anos luxuosa de uma família de empresários que viralizou no Instagram..." oninput="state.ganchoInput=this.value">${state.ganchoInput||''}</textarea>
       </div>
       <div class="form-group">
         <label>Nicho ou tipo de negócio</label>
@@ -1132,12 +1213,13 @@ function renderPhase() {
     `;
   }
 
+  // ─── FASE 2 ───
   else if (phase === 2) {
     html += `
       <div class="phase-header">
         <div class="phase-eyebrow">Fase 02 — Configuração</div>
         <h1 class="phase-title">Como <em>configurar</em><br>o carrossel?</h1>
-        <p class="phase-subtitle">Defina extensão e voz para moldar a geração de texto.</p>
+        <p class="phase-subtitle">Defina extensão e voz para o agente gerar o texto certo.</p>
       </div>
 
       <div class="form-group">
@@ -1177,55 +1259,77 @@ function renderPhase() {
       </div>
 
       <div class="divider"></div>
-      <p style="font-size:13px;color:var(--muted);">O sistema vai executar o diagnóstico interno (fórmula, virada, polarização, CTA) e criar o carrossel completo na próxima fase.</p>
+      <p style="font-size:13px;color:var(--muted);">Na próxima fase você receberá o prompt pronto para colar no Claude Code. O agente vai gerar o texto completo com IA real.</p>
     `;
   }
 
+  // ─── FASE 3 — GERADOR DE PROMPT ───
   else if (phase === 3) {
-    const gerado = state.carrosselGerado;
+    const prompt = gerarPrompt();
     html += `
       <div class="phase-header">
-        <div class="phase-eyebrow">Fase 03 — Geração de Texto</div>
-        <h1 class="phase-title">Criando os <em>slides</em><br>do carrossel</h1>
-        <p class="phase-subtitle">O sistema aplica a fórmula validada e gera cada slide com visual descrito.</p>
+        <div class="phase-eyebrow">Fase 03 — Prompt para o Claude Code</div>
+        <h1 class="phase-title">Prompt pronto para<br><em>Claude Code</em></h1>
+        <p class="phase-subtitle">Copie e cole no Claude Code para gerar o carrossel com IA real e montar no Canva.</p>
       </div>
 
-      ${!gerado ? `
-      <div class="formula-badge">
-        <span class="formula-icon">⚡</span>
-        <div>
-          <strong>Fórmula EPALC-CTA</strong> — Evento/Polêmica → Prints haters → Autoridade → Lição → CTA
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Fórmula dominante nos top 5 carrosseis do perfil</div>
-        </div>
-      </div>
+      <div class="prompt-box" id="promptBox">${escapeHtml(prompt)}</div>
 
-      <button class="btn btn-primary" onclick="gerarCarrossel()" style="width:100%;padding:16px;font-size:15px;border-radius:10px;">
-        ✦ Gerar Carrossel Completo
+      <button class="btn btn-primary" style="width:100%;padding:13px;font-size:14px;margin-bottom:24px" onclick="copiarPrompt()">
+        📋 COPIAR PROMPT
       </button>
-      <div id="loadingGen" style="display:none">
-        <div class="loading-dots"><span></span><span></span><span></span></div>
-        <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px;">Aplicando fórmula e escrevendo slides...</p>
-      </div>
-      ` : `
-      <div class="generated-box">
-        <div class="generated-header">
-          <div class="generated-label">Carrossel gerado</div>
-          <button class="copy-btn" onclick="copyText('carrosselGerado')">COPIAR</button>
+
+      <div class="steps-guide">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-text">Copie o prompt acima clicando no botão <strong>COPIAR PROMPT</strong></div>
         </div>
-        <div class="generated-content" id="carrosselContent">${gerado}</div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-text">Cole no chat do <strong>Claude Code</strong> e envie</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-text">Aguarde — o agente vai <strong>gerar o texto E montar no Canva</strong> automaticamente</div>
+        </div>
       </div>
-      `}
+
+      <div class="divider"></div>
+
+      <button class="btn btn-ghost" style="width:100%;padding:13px;font-size:14px" onclick="goToPhase(4)">
+        Já executei — colar texto dos slides →
+      </button>
     `;
   }
 
+  // ─── FASE 4 — EDITOR DE TEXTO (colar do agente) ───
   else if (phase === 4) {
+    const temSlides = state.slidesData && state.slidesData.length > 0;
     html += `
       <div class="phase-header">
-        <div class="phase-eyebrow">Fase 04 — Checkpoint Humano</div>
-        <h1 class="phase-title">Revise e <em>edite</em><br>o texto aqui</h1>
-        <p class="phase-subtitle">Edite diretamente o texto de qualquer slide. Quando estiver pronto, clique em Aprovar.</p>
+        <div class="phase-eyebrow">Fase 04 — Cole o Texto Gerado</div>
+        <h1 class="phase-title">Cole o texto<br><em>gerado pelo agente</em></h1>
+        <p class="phase-subtitle">Copie o texto dos slides que o Claude Code gerou e cole abaixo.</p>
       </div>
 
+      ${!temSlides ? `
+      <div class="checkpoint">
+        <div class="checkpoint-icon">📋</div>
+        <div>
+          <div class="checkpoint-title">Cole o texto do pipeline-carrossel-suellen</div>
+          <div class="checkpoint-desc">O texto deve ter os slides separados por <strong>---</strong> e cada bloco com uma linha <strong>Visual:</strong> indicando o fundo.</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Texto gerado pelo agente</label>
+        <textarea id="pasteArea" placeholder="Cole aqui o texto dos slides gerado pelo pipeline-carrossel-suellen...">${state.carrosselGerado || ''}</textarea>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;padding:13px;font-size:14px" onclick="parsearSlidesColados()">
+        Analisar slides colados →
+      </button>
+      ` : `
       <div class="checkpoint">
         <div class="checkpoint-icon">✏️</div>
         <div>
@@ -1238,18 +1342,24 @@ function renderPhase() {
         ${buildSlidesEditor()}
       </div>
 
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
         <button class="btn btn-primary" style="padding:12px 28px;font-size:14px" onclick="aprovarTexto()">
-          ✅ Aprovar e ir para o Canva
+          ✅ Aprovar e selecionar modelo →
         </button>
         <button class="btn btn-ghost" style="font-size:13px" onclick="salvarEdicoes()">
           💾 Salvar edições
         </button>
-        <span id="savedMsg" style="font-size:12px;color:var(--orange);opacity:0;transition:opacity 0.3s"></span>
+        <span id="savedMsg" style="font-size:12px;color:var(--orange);opacity:0;transition:opacity 0.3s">Salvo!</span>
       </div>
+
+      <button class="btn btn-ghost" style="font-size:12px" onclick="resetarSlides()">
+        ← Colar novo texto
+      </button>
+      `}
     `;
   }
 
+  // ─── FASE 5 — SELEÇÃO DE MODELO ───
   else if (phase === 5) {
     html += `
       <div class="phase-header">
@@ -1326,60 +1436,76 @@ function renderPhase() {
     `;
   }
 
+  // ─── FASE 6 — MONTAGEM CANVA LAUNCHER ───
   else if (phase === 6) {
+    const modelNum = state.modelo || '?';
+    const modelId = state.modeloDesignId || 'selecione um modelo';
+    const comandoMontagem = gerarComandoMontagem();
     html += `
       <div class="phase-header">
-        <div class="phase-eyebrow">Fase 06 — Montagem Canva</div>
-        <h1 class="phase-title">Montando no <em>Canva</em><br>via MCP</h1>
-        <p class="phase-subtitle">O sistema está editando o template de trabalho com o texto aprovado.</p>
-      </div>
-
-      <div class="checkpoint">
-        <div class="checkpoint-icon">⚙️</div>
-        <div>
-          <div class="checkpoint-title">Processo automático via Canva MCP</div>
-          <div class="checkpoint-desc">
-            O agente executa: <strong>start-editing-transaction</strong> → substituição de todos os textos por slide → inserção de imagens (se modelo 2 ou 3) → geração de preview para aprovação visual.
-          </div>
-        </div>
+        <div class="phase-eyebrow">Fase 06 — Montagem no Canva</div>
+        <h1 class="phase-title">Monte no <em>Canva</em><br>via Claude Code</h1>
+        <p class="phase-subtitle">Copie o comando abaixo e cole no Claude Code. O agente vai usar start-editing-transaction + perform-editing-operations + commit para montar todos os slides no Canva.</p>
       </div>
 
       <div class="form-group">
-        <label>Template sendo editado</label>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <div class="tag tag-orange">
-            ${state.modelo === '1' ? 'DAHE5MATRwk — Modelo 1' : state.modelo === '2' ? 'DAHE5Fele2U — Modelo 2' : 'DAHE5Owuqkk — Modelo 3'}
-          </div>
+        <label>Template selecionado</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+          <div class="tag tag-orange">MODELO ${modelNum} — ${modelId}</div>
           <div class="tag tag-muted">NUNCA editar template original</div>
         </div>
       </div>
 
-      <div class="generated-box">
+      <div class="generated-box" style="margin-bottom:16px">
         <div class="generated-header">
-          <div class="generated-label">Log de operações MCP</div>
-          <span class="tag tag-muted" style="font-size:9px">SIMULAÇÃO</span>
+          <div class="generated-label">Comando de montagem</div>
+          <button class="copy-btn" onclick="copiarComandoMontagem()">COPIAR</button>
         </div>
-        <div class="generated-content" style="font-family:var(--font-mono);font-size:12px;line-height:2;max-height:260px">${getMCPLog()}</div>
+        <div class="generated-content" style="font-family:var(--font-mono);font-size:13px">${escapeHtml(comandoMontagem)}</div>
       </div>
 
-      <div style="margin-top:16px">
-        <button class="btn btn-primary" onclick="simularMontagem()" style="width:100%;padding:14px">
-          ▶ Simular Montagem Completa
-        </button>
+      <div class="steps-guide" style="margin-bottom:28px">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-text">Copie o comando acima clicando em <strong>COPIAR</strong></div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-text">Cole no <strong>Claude Code</strong> e envie</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-text">O agente vai usar <strong>start-editing-transaction → perform-editing-operations → commit</strong> automaticamente</div>
+        </div>
       </div>
+
+      <div class="divider"></div>
+
+      <button class="btn btn-primary" style="width:100%;padding:13px;font-size:14px" onclick="goToPhase(7)">
+        Montagem concluída — ver resultado →
+      </button>
     `;
   }
 
+  // ─── FASE 7 — ENTREGA ───
   else if (phase === 7) {
     const modelNum = state.modelo || '1';
-    const modelId = getModelId();
     html += `
       <div class="phase-header">
         <div class="phase-eyebrow">Fase 07 — Entrega</div>
-        <h1 class="phase-title">Carrossel <em>pronto</em><br>para postar! 🎉</h1>
-        <p class="phase-subtitle">Link Canva, texto completo dos slides e legenda — tudo pronto para copiar e usar.</p>
+        <h1 class="phase-title">Carrossel<br><em>montado no Canva!</em></h1>
+        <p class="phase-subtitle">Cole o link do Canva retornado pelo Claude Code para finalizar.</p>
       </div>
 
+      ${!state.linkConfirmado ? `
+      <div class="form-group">
+        <label>Link do Canva retornado pelo Claude Code</label>
+        <input id="canvaLinkInput" placeholder="Cole aqui o link do Canva retornado pelo Claude Code..." oninput="state.canvaLink=this.value" value="${escapeHtml(state.canvaLink)}">
+        <button class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;margin-top:8px" onclick="confirmarLink()">
+          Confirmar link
+        </button>
+      </div>
+      ` : `
       <!-- CANVA LINK -->
       <div class="delivery-card">
         <div class="delivery-header">
@@ -1387,45 +1513,48 @@ function renderPhase() {
           <div class="delivery-title">Design montado no Canva — Modelo ${modelNum}</div>
         </div>
         <div class="delivery-body">
-          <a class="canva-link" href="https://www.canva.com/design/${modelId}/edit" target="_blank">
+          <a class="canva-link" href="${escapeHtml(state.canvaLink)}" target="_blank">
             <div class="canva-link-icon">🔗</div>
             <div class="canva-link-text">
               <div class="canva-link-label">Abrir no Canva para exportar</div>
-              <div class="canva-link-url">canva.com/design/${modelId}/edit</div>
+              <div class="canva-link-url">${escapeHtml(state.canvaLink)}</div>
             </div>
             <div class="canva-link-arrow">↗</div>
           </a>
           <p style="font-size:12px;color:var(--muted)">No Canva: <strong>Compartilhar → Baixar → PNG → Todas as páginas → Baixar</strong></p>
         </div>
       </div>
+      `}
 
       <!-- PREVIEW VISUAL DOS SLIDES -->
       ${buildSlidesPreviewGrid()}
 
+      ${state.slidesData && state.slidesData.length > 0 ? `
       <!-- TEXTO DOS SLIDES -->
       <div class="generated-box" style="margin-bottom:16px">
         <div class="generated-header">
           <div class="generated-label">Texto completo dos slides</div>
           <button class="copy-btn" onclick="copyCarrossel()">COPIAR TUDO</button>
         </div>
-        <div class="generated-content" id="carrosselFinal">${getTextoFinalSlides()}</div>
+        <div class="generated-content" id="carrosselFinal">${escapeHtml(getTextoFinalSlides())}</div>
       </div>
 
       <!-- LEGENDA -->
       <div class="generated-box" style="margin-bottom:24px">
         <div class="generated-header">
-          <div class="generated-label">Legenda pronta para postar</div>
+          <div class="generated-label">Legenda gerada</div>
           <button class="copy-btn" onclick="copyLegenda()">COPIAR</button>
         </div>
-        <div class="generated-content" id="legendaFinal">${getLegenda()}</div>
+        <div class="generated-content" id="legendaFinal">${escapeHtml(getLegenda())}</div>
       </div>
+      ` : ''}
 
       <div style="background:var(--orange-pale);border:1px solid rgba(200,75,26,0.25);border-radius:10px;padding:18px 20px">
         <p style="font-size:13px;font-weight:600;margin-bottom:6px">📌 Após postar</p>
         <p style="font-size:12px;color:var(--muted)">Avise o agente que postou para ele <strong>redefinir o template de trabalho</strong> e deixar pronto para o próximo carrossel.</p>
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
           <button class="btn btn-primary" style="font-size:12px;padding:8px 18px" onclick="reiniciar()">+ Novo carrossel</button>
-          <button class="btn btn-ghost" style="font-size:12px" onclick="copiarComando()">Copiar comando: Redefinir template ${modelNum}</button>
+          <button class="btn btn-ghost" style="font-size:12px" onclick="copiarComandoRedefinir()">Copiar comando: Redefinir template ${modelNum}</button>
         </div>
       </div>
     `;
@@ -1451,7 +1580,7 @@ function selectModel(num) {
 }
 
 function goToPhase(num) {
-  if (num <= state.currentPhase) {
+  if (num <= state.currentPhase || num === state.currentPhase + 1) {
     state.currentPhase = num;
     renderAll();
   }
@@ -1479,471 +1608,161 @@ function renderAll() {
   renderPhase();
 }
 
-// ─── NICHO VARIANTES ───
-function getNichoVariantes(nicho) {
-  const n = (nicho || '').toLowerCase();
-  if (n.includes('loja') || n.includes('roupa') || n.includes('moda')) {
-    return {
-      tipo: 'varejo de moda',
-      gancho: 'A cliente entrou na loja, provou tudo, amou — e saiu com "vou pensar".',
-      situacao: 'Você já perdeu venda porque o cliente "foi pensar" e nunca voltou?',
-      inimigo: 'O problema não é o preço. É a falta de um script para o momento crítico da decisão.',
-      solucoes: [
-        'Script 1: Pergunte o que impediu a decisão agora. Ouça com atenção.',
-        'Script 2: Mostre escassez real — estoque limitado, promoção com prazo.',
-        'Script 3: Ofereça facilidade — pagamento parcelado, entrega, reserva por 24h.',
-      ],
-      resultado: 'Quando você treina o script certo, a taxa de fechamento dobra em 30 dias.',
-      virada: 'Eu aprendi isso na marra. Depois que passei a usar essa abordagem, as vendas presenciais mudaram.',
-      polarNeg: '"Eu nunca abaixo preço, quem não quer pagar não é meu cliente."',
-      polarPos: '"Entendo. Mas e se o problema não for preço, e sim falta de argumento na hora certa?"',
-      produto: 'No Engrene, ensino exatamente como treinar seu atendimento para vender mais sem baixar preço.',
-      ctaPalavra: 'SCRIPT',
-    };
-  }
-  if (n.includes('salão') || n.includes('beleza') || n.includes('estética') || n.includes('estetic')) {
-    return {
-      tipo: 'salão de beleza',
-      gancho: 'A cliente agendou, confirmou — e não apareceu. Isso custa caro demais.',
-      situacao: 'Falta no agendamento é a maior dor de quem trabalha com serviço de beleza.',
-      inimigo: 'O problema não é o cliente irresponsável. É a falta de um protocolo de confirmação eficiente.',
-      solucoes: [
-        'Script 1: Confirmação 48h antes com link de reagendamento fácil.',
-        'Script 2: Política de encaixe para emergências — aproveite o slot vazio.',
-        'Script 3: Lista de espera ativa — quem está disponível agora?',
-      ],
-      resultado: 'Com esse protocolo, a taxa de no-show cai mais de 60% em 2 semanas.',
-      virada: 'Quando eu entendi que reter cliente é mais barato que captar, mudei o jogo do meu negócio.',
-      polarNeg: '"Minha agenda está sempre cheia, isso não me acontece."',
-      polarPos: '"Agenda cheia e agenda rentável são coisas diferentes. Você sabe quanto perdeu nos últimos 30 dias?"',
-      produto: 'No Engrene, mostramos como transformar agenda cheia em agenda lucrativa.',
-      ctaPalavra: 'AGENDA',
-    };
-  }
-  if (n.includes('confeitaria') || n.includes('bolo') || n.includes('doce') || n.includes('confeit')) {
-    return {
-      tipo: 'confeitaria',
-      gancho: 'O cliente perguntou o preço, você respondeu — e ele sumiu. Isso tem solução.',
-      situacao: 'Precificar doces e bolos é o maior gargalo de quem trabalha com confeitaria.',
-      inimigo: 'O problema não é seu produto ser caro. É não conseguir comunicar o valor do que você entrega.',
-      solucoes: [
-        'Script 1: Antes do preço, mostre o que está incluso — ingredientes, tempo, entrega.',
-        'Script 2: Compare o custo com o concorrente sem denegrir — use os diferenciais.',
-        'Script 3: Ofereça uma versão menor como entrada, sem baixar a qualidade.',
-      ],
-      resultado: 'Quando você vende valor antes de preço, para de ter que se justificar.',
-      virada: 'Eu parei de perder pedidos quando aprendi que a venda começa antes da cotação.',
-      polarNeg: '"Quem acha caro não é meu cliente, simples assim."',
-      polarPos: '"Quem acha caro talvez não tenha entendido o valor. Esse é o seu trabalho comunicar."',
-      produto: 'No Engrene, treinamos você para vender sem se sentir constrangida com o preço.',
-      ctaPalavra: 'VALOR',
-    };
-  }
-  if (n.includes('clínica') || n.includes('saúde') || n.includes('médico') || n.includes('medico') || n.includes('clinic')) {
-    return {
-      tipo: 'clínica de saúde',
-      gancho: 'O paciente fez a consulta, saiu satisfeito — e nunca mais voltou. Isso tem nome: abandono.',
-      situacao: 'Manter o paciente em acompanhamento contínuo é o maior desafio das clínicas.',
-      inimigo: 'O problema não é falta de interesse do paciente. É ausência de protocolo de retenção.',
-      solucoes: [
-        'Script 1: Lembrete personalizado com o nome do paciente antes da data recomendada.',
-        'Script 2: Conteúdo educativo entre consultas — você não some até o próximo retorno.',
-        'Script 3: Pesquisa de satisfação ativa — quem pergunta, fideliza.',
-      ],
-      resultado: 'Clínicas com protocolo de retenção têm 3x mais retorno espontâneo.',
-      virada: 'Quando entendi que atendimento começa no pós-consulta, o negócio mudou de patamar.',
-      polarNeg: '"Paciente bom é o que volta por conta própria quando precisa."',
-      polarPos: '"Paciente bem atendido volta antes de precisar. Essa é a diferença entre clínica e negócio."',
-      produto: 'No Engrene, mostramos como transformar paciente pontual em paciente fiel.',
-      ctaPalavra: 'PROTOCOLO',
-    };
-  }
-  // Default: negócio local genérico
-  return {
-    tipo: 'negócio local',
-    gancho: 'Sabe aquela situação que toda empreendedora já viveu e nunca esquece?',
-    situacao: 'Você trabalha muito, entrega bem — mas sente que poderia vender muito mais.',
-    inimigo: 'O problema não é falta de produto bom. É falta de processo para vender o que você já tem.',
-    solucoes: [
-      'Script 1: Identifique o ponto de perda — onde o cliente sai sem comprar?',
-      'Script 2: Tenha um argumento pronto para cada objeção comum no seu nicho.',
-      'Script 3: Crie um acompanhamento pós-venda para gerar recompra e indicação.',
-    ],
-    resultado: 'Com processo definido, as vendas deixam de depender do seu dia — elas acontecem.',
-    virada: 'O que mudou meu negócio foi parar de vender no improviso e ter um método.',
-    polarNeg: '"Quem tem bom produto não precisa de script de vendas."',
-    polarPos: '"Quem tem bom produto E script de vendas fecha muito mais. Os dois não se excluem."',
-    produto: 'No Engrene, você aprende o método completo de marketing e vendas para negócios locais.',
-    ctaPalavra: 'MÉTODO',
-  };
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
-// ─── TEXTO POR SLOT ───
-
-function ganchoF1(nicho, tema) {
-  if (state.ganchoInput && state.ganchoInput.length > 10) {
-    const trecho = state.ganchoInput.slice(0, 70);
-    return `Viram o que aconteceu com ${trecho}...\n\nMeus caros empreendedores, isso diz muito mais sobre negócios do que parece.`;
-  }
-  const v = getNichoVariantes(nicho);
-  return `Viram essa situação nos ${v.tipo}, meus caros empreendedores?\n\n${v.gancho}`;
-}
-
-function contextoF1(nicho, tema) {
-  if (state.ganchoInput && state.ganchoInput.length > 10) {
-    return `Quando vi ${state.ganchoInput.slice(0, 80)}, fiquei pensando no quanto isso reflete o dia a dia de quem empreende.\n\nNão é coincidência. É padrão.`;
-  }
-  const v = getNichoVariantes(nicho);
-  return `${v.situacao}\n\nEssa é uma das cenas mais repetidas no ${v.tipo} brasileiro — e poucas empreendedoras sabem o que fazer nesse momento.`;
-}
-
-function polarizacaoNeg(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `O que a maioria faz:\n\n${v.polarNeg}\n\nE aí fica esperando o milagre acontecer.`;
-}
-
-function polarizacaoPos(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `Mas existe outro caminho:\n\n${v.polarPos}\n\nE é exatamente isso que separa quem vende de quem apenas atende.`;
-}
-
-function autoridadeF1(nicho) {
-  const voz = state.voz === 'marca' ? 'A gente já acompanhou' : 'Eu já acompanhei';
-  return `${voz} centenas de empreendedoras no ${getNichoVariantes(nicho).tipo}.\n\nO padrão é sempre o mesmo: quem tem método, vende mais. Quem improvisa, perde.`;
-}
-
-function viradaF1(nicho) {
-  const v = getNichoVariantes(nicho);
-  const eu = state.voz === 'marca' ? 'A gente descobriu' : 'Eu aprendi';
-  return `${eu} na prática:\n\n${v.virada}`;
-}
-
-function licaoF1(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `A lição que fica:\n\n${v.resultado}\n\nNão é sobre trabalhar mais. É sobre trabalhar com método.`;
-}
-
-function produtoF1() {
-  return `SUELLEN WARMLING\n\n${getNichoVariantes(state.nicho).produto}`;
-}
-
-function ctaF1(objetivo) {
-  const v = getNichoVariantes(state.nicho);
-  const palavra = v.ctaPalavra;
-  if (objetivo === 'vendas') {
-    return `Comente ${palavra} aqui embaixo e eu te mando o material completo direto no seu Direct.\n\nSUELLEN WARMLING`;
-  }
-  if (objetivo === 'saves' || objetivo === 'salvamentos') {
-    return `Salva esse carrossel antes de fechar — você vai querer reler.\n\nComente GUIA e eu te mando o passo a passo completo.\n\nSUELLEN WARMLING`;
-  }
-  return `Comente ${palavra} aqui nos comentários e me conta: qual parte foi mais reveladora pra você?\n\nSUELLEN WARMLING`;
-}
-
-// Fórmula 2
-function ganchoF2(nicho, tema) {
-  if (state.ganchoInput && state.ganchoInput.length > 10) {
-    return `Viram essa, meus caros empreendedores?\n\n${state.ganchoInput.slice(0, 100)}\n\nTem gente que vai odiar o que vou falar. Mas precisa ser dito.`;
-  }
-  const v = getNichoVariantes(nicho);
-  return `Tenho uma opinião sobre ${v.tipo} que vai dividir quem me lê.\n\nMas prefiro ser honesta com você do que falar só o que é bonito de ouvir.`;
-}
-
-function posicionamento(nicho) {
-  const v = getNichoVariantes(nicho);
-  const eu = state.voz === 'marca' ? 'A gente acredita' : 'Eu acredito';
-  return `${eu} que o maior problema no ${v.tipo} hoje não é a economia, não é a concorrência, não é o Instagram.\n\nÉ o improviso disfarçado de "jeitinho".`;
-}
-
-function printHater(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `[Print hater]\n"${v.polarNeg.replace(/"/g,'')}"\n\n🙄`;
-}
-
-function printDefensor(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `[Print defensor]\n"${v.polarPos.replace(/"/g,'')}"\n\nExatamente isso.`;
-}
-
-function reflexao(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `A pergunta que ninguém quer responder:\n\n${v.situacao}\n\nE a resposta honesta costuma ser: "estou indo no piloto automático."`;
-}
-
-function viradaF2(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `A virada acontece quando você para de esperar e começa a agir com método.\n\n${v.resultado}`;
-}
-
-function licaoF2(nicho) {
-  return `Você pode discordar de mim. Tudo bem.\n\nMas os números do ${getNichoVariantes(nicho).tipo} que trabalha com método não mentem.`;
-}
-
-function produtoF2() {
-  return `SUELLEN WARMLING\n\n${getNichoVariantes(state.nicho).produto}`;
-}
-
-function ctaF2() {
-  const v = getNichoVariantes(state.nicho);
-  return `Concorda ou discorda? Me conta nos comentários.\n\nComente ${v.ctaPalavra} e eu te mando o material que vai mudar sua visão sobre isso.\n\nSUELLEN WARMLING`;
-}
-
-// Fórmula 3
-function ganchoF3(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `3 coisas que todo empreendedor de ${v.tipo} precisa parar de fazer — e o que fazer no lugar.\n\n(Salva esse carrossel.)`;
-}
-
-function situacao(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `${v.situacao}\n\nSe você já passou por isso, você não está sozinha. E tem saída.`;
-}
-
-function inimigoComum(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `O inimigo não é o que você pensa.\n\n${v.inimigo}`;
-}
-
-function solucao1(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `PASSO 1\n\n${v.solucoes[0]}`;
-}
-
-function solucao2(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `PASSO 2\n\n${v.solucoes[1]}`;
-}
-
-function solucao3(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `PASSO 3\n\n${v.solucoes[2]}`;
-}
-
-function resultado(nicho) {
-  const v = getNichoVariantes(nicho);
-  return `O resultado quando você aplica:\n\n${v.resultado}`;
-}
-
-function viradaF3(nicho) {
-  const v = getNichoVariantes(nicho);
-  const eu = state.voz === 'marca' ? 'A gente aprendeu' : 'Aprendi';
-  return `${eu} isso na prática:\n\n${v.virada}`;
-}
-
-function produtoF3() {
-  return `SUELLEN WARMLING\n\n${getNichoVariantes(state.nicho).produto}`;
-}
-
-function ctaF3() {
-  const v = getNichoVariantes(state.nicho);
-  return `Salva esse carrossel para consultar sempre que precisar.\n\nComente ${v.ctaPalavra} e eu te mando o guia completo no Direct.\n\nSUELLEN WARMLING`;
-}
-
-// ─── DIAGNÓSTICO DE FÓRMULA ───
-function diagnosticarFormula() {
-  const obj = state.objetivo;
-  const temEvento = state.ganchoInput && state.ganchoInput.length > 10;
-  if (obj === 'viralizar' || obj === 'autoridade' || temEvento) return 'F1';
-  if (obj === 'comentarios') return 'F2';
-  if (obj === 'vendas' || obj === 'saves' || obj === 'salvamentos') return 'F3';
-  return 'F1'; // default
-}
-
-// ─── GERAR CARROSSEL REAL ───
-function gerarCarrosselReal() {
+// ─── GERADOR DE PROMPT (fase 3) ───
+function gerarPrompt() {
+  const tema = state.ganchoInput && state.ganchoInput.trim()
+    ? state.ganchoInput.trim()
+    : 'sem tema definido — sugira com base no nicho';
   const nicho = state.nicho || 'negócio local';
-  const tema = state.ganchoInput || '';
-  const formula = diagnosticarFormula();
-  state.formula = formula;
+  const objetivo = state.objetivo || 'engajamento geral';
+  const extensao = state.extensao || '10';
+  const voz = state.voz === 'marca' ? 'Marca/Empresa (A gente)' : state.voz === 'pessoa' ? 'Pessoa (1ª pessoa — Eu)' : 'não definido';
 
-  let slides = [];
+  return `/AIOS:agents:pipeline-carrossel-suellen
 
-  if (formula === 'F1') {
-    slides = [
-      { tipo: 'gancho',      fundo: 'foto',    texto: ganchoF1(nicho, tema) },
-      { tipo: 'contexto',    fundo: 'branco',  texto: contextoF1(nicho, tema) },
-      { tipo: 'polarizacao', fundo: 'preto',   texto: polarizacaoNeg(nicho) },
-      { tipo: 'polarizacao', fundo: 'preto',   texto: polarizacaoPos(nicho) },
-      { tipo: 'autoridade',  fundo: 'branco',  texto: autoridadeF1(nicho) },
-      { tipo: 'virada',      fundo: 'branco',  texto: viradaF1(nicho) },
-      { tipo: 'licao',       fundo: 'branco',  texto: licaoF1(nicho) },
-      { tipo: 'produto',     fundo: 'branco',  texto: produtoF1() },
-      { tipo: 'cta',         fundo: 'laranja', texto: ctaF1(state.objetivo) },
-    ];
-  } else if (formula === 'F2') {
-    slides = [
-      { tipo: 'gancho',          fundo: 'foto',    texto: ganchoF2(nicho, tema) },
-      { tipo: 'posicionamento',  fundo: 'branco',  texto: posicionamento(nicho) },
-      { tipo: 'polarizacao',     fundo: 'preto',   texto: printHater(nicho) },
-      { tipo: 'polarizacao',     fundo: 'preto',   texto: printDefensor(nicho) },
-      { tipo: 'reflexao',        fundo: 'branco',  texto: reflexao(nicho) },
-      { tipo: 'virada',          fundo: 'laranja', texto: viradaF2(nicho) },
-      { tipo: 'licao',           fundo: 'branco',  texto: licaoF2(nicho) },
-      { tipo: 'produto',         fundo: 'branco',  texto: produtoF2() },
-      { tipo: 'cta',             fundo: 'laranja', texto: ctaF2() },
-    ];
-  } else {
-    // F3
-    slides = [
-      { tipo: 'gancho',   fundo: 'branco',  texto: ganchoF3(nicho) },
-      { tipo: 'situacao', fundo: 'branco',  texto: situacao(nicho) },
-      { tipo: 'inimigo',  fundo: 'preto',   texto: inimigoComum(nicho) },
-      { tipo: 'solucao1', fundo: 'laranja', texto: solucao1(nicho) },
-      { tipo: 'solucao2', fundo: 'laranja', texto: solucao2(nicho) },
-      { tipo: 'solucao3', fundo: 'laranja', texto: solucao3(nicho) },
-      { tipo: 'resultado',fundo: 'branco',  texto: resultado(nicho) },
-      { tipo: 'virada',   fundo: 'branco',  texto: viradaF3(nicho) },
-      { tipo: 'produto',  fundo: 'foto',    texto: produtoF3() },
-      { tipo: 'cta',      fundo: 'laranja', texto: ctaF3() },
-    ];
-  }
-
-  // Mapear fundo para descrição visual legível
-  const fundoLabel = { branco: 'Fundo BRANCO', preto: 'Fundo PRETO', laranja: 'Fundo LARANJA #C84B1A', foto: 'Fundo FOTO (overlay)' };
-
-  state.slidesData = slides;
-
-  // Gerar string formatada para exibição/cópia
-  const linhas = slides.map((s, i) => {
-    const num = String(i + 1).padStart(2, '0');
-    const tipoLabel = s.tipo.toUpperCase().replace(/\d/g, '');
-    return `---\nSLIDE ${num} — [Tipo: ${tipoLabel}]\n${s.texto}\nVisual: ${fundoLabel[s.fundo]}`;
-  });
-  state.carrosselGerado = linhas.join('\n\n');
+Tema: ${tema}
+Nicho: ${nicho}
+Objetivo: ${objetivo}
+Extensão: ${extensao} slides
+Voz: ${voz}`;
 }
 
-function gerarCarrossel() {
-  document.getElementById('loadingGen').style.display = 'block';
-  setTimeout(() => {
-    gerarCarrosselReal();
-    state.legendaGerada = gerarLegendaReal();
-    renderPhase();
-  }, 1800);
-}
-
-function solicitarAjuste() {
-  const ajuste = document.getElementById('ajustesInput')?.value;
-  if (ajuste) {
-    alert('Ajuste registrado: "' + ajuste + '"\n\nNo agente real, o texto seria regenerado com este feedback antes de mostrar novamente para aprovação.');
-  }
-  state.currentPhase = 3;
-  renderAll();
-}
-
-function simularMontagem() {
-  const log = document.getElementById('mainContent').querySelector('.generated-content');
-  if (log) {
-    log.innerHTML = getMCPLogFull();
-    log.style.color = '#4ade80';
-  }
-}
-
-function copyText(key) {
-  navigator.clipboard.writeText(state[key] || '').then(() => {
+// ─── COPIAR PROMPT ───
+function copiarPrompt() {
+  const prompt = gerarPrompt();
+  navigator.clipboard.writeText(prompt).then(() => {
     const btn = event.target;
-    btn.textContent = 'COPIADO!';
-    setTimeout(() => btn.textContent = 'COPIAR', 2000);
+    const orig = btn.textContent;
+    btn.textContent = '✓ COPIADO!';
+    btn.style.background = '#2a7a2a';
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.style.background = '';
+    }, 2200);
   });
 }
 
-function copyLegenda() {
-  navigator.clipboard.writeText(getLegenda()).then(() => {
-    const btn = event.target;
-    btn.textContent = 'COPIADO!';
-    setTimeout(() => btn.textContent = 'COPIAR', 2000);
-  });
-}
-
-function reiniciar() {
-  Object.assign(state, {
-    currentPhase: 1, tema: '', nicho: '', objetivo: '', gancho: '',
-    ganchoInput: '', formula: '', extensao: '', voz: '', textoAprovado: false,
-    modelo: '', carrosselGerado: '', legendaGerada: '', canvaLink: '', modeloDesignId: '',
-    slidesData: []
-  });
-  renderAll();
-  window.scrollTo(0,0);
-}
-
-function getModelId() {
-  return state.modeloDesignId || 'DAHE5MATRwk';
-}
-
-function gerarLegendaReal() {
-  const nicho = state.nicho || 'negócio local';
-  const v = getNichoVariantes(nicho);
-  const formula = state.formula || diagnosticarFormula();
-  let abertura = '';
-  if (state.ganchoInput && state.ganchoInput.length > 10) {
-    abertura = `Viram ${state.ganchoInput.slice(0, 60)}...? 👀\n\n`;
-  } else {
-    abertura = `Cara empreendedora, isso muda tudo no seu ${v.tipo}. 👀\n\n`;
+// ─── PARSEAR SLIDES COLADOS (fase 4) ───
+function parsearSlidesColados() {
+  const textarea = document.getElementById('pasteArea');
+  if (!textarea) return;
+  const texto = textarea.value;
+  if (!texto.trim()) {
+    alert('Cole o texto gerado pelo agente antes de analisar.');
+    return;
   }
-  const corpo = `${v.situacao}\n\n${v.resultado}`;
-  const cta = `\n\nComente ${v.ctaPalavra} nos comentários e eu te mando o material completo direto no seu Direct. 👇`;
+
+  state.carrosselGerado = texto;
+
+  // Dividir por ---
+  const blocos = texto.split(/\n---\n/).filter(b => b.trim());
+
+  state.slidesData = blocos.map((bloco, i) => {
+    const linhas = bloco.split('\n');
+    const titulo = linhas[0].replace(/^---\s*/, '').trim();
+
+    // Detectar fundo pela linha "Visual:"
+    const visualLine = linhas.find(l => l.toLowerCase().includes('visual:')) || '';
+    let fundo = 'branco';
+    if (visualLine.toLowerCase().includes('laranja') || visualLine.toLowerCase().includes('#c84b1a')) fundo = 'laranja';
+    else if (visualLine.toLowerCase().includes('preto') || visualLine.toLowerCase().includes('#000')) fundo = 'preto';
+    else if (visualLine.toLowerCase().includes('foto') || visualLine.toLowerCase().includes('suellen')) fundo = 'foto';
+
+    // Detectar tipo pelo título
+    let tipo = 'slide';
+    const tituloLower = titulo.toLowerCase();
+    if (tituloLower.includes('gancho')) tipo = 'gancho';
+    else if (tituloLower.includes('cta')) tipo = 'cta';
+    else if (tituloLower.includes('polariza') || tituloLower.includes('print')) tipo = 'polarização';
+    else if (tituloLower.includes('lição') || tituloLower.includes('licao')) tipo = 'lição';
+    else if (tituloLower.includes('autoridade')) tipo = 'autoridade';
+    else if (tituloLower.includes('virada')) tipo = 'virada';
+    else if (tituloLower.includes('produto')) tipo = 'produto';
+
+    // Texto sem a linha Visual: e sem o título
+    const textoSlide = linhas.filter((l, idx) => idx > 0 && !l.toLowerCase().startsWith('visual:')).join('\n').trim();
+
+    return { id: i, tipo, fundo, titulo, texto: bloco.trim(), textoSlide };
+  });
+
+  state.slidesEditaveis = state.slidesData.map(s => ({ id: s.id, texto: s.texto, fundo: s.fundo, tipo: s.tipo }));
+
+  // Gerar legenda a partir do CTA/último slide
+  state.legendaGerada = extrairLegenda();
+
+  renderPhase();
+}
+
+// ─── EXTRAIR LEGENDA DOS SLIDES ───
+function extrairLegenda() {
+  if (!state.slidesData || state.slidesData.length === 0) return '';
+  // Procurar slide CTA
+  const ctaSlide = state.slidesData.find(s => s.tipo === 'cta');
+  const baseSlide = ctaSlide || state.slidesData[state.slidesData.length - 1];
+  const texto = baseSlide ? baseSlide.textoSlide || baseSlide.texto : '';
+  // Retornar o texto do slide CTA como base da legenda
+  const nicho = state.nicho || 'negócios';
   const tags = `\n\n#empreendedorismo #negocioslocais #${nicho.replace(/\s+/g,'').toLowerCase()} #vendas #suellenwarmling #marketingdigital`;
-  return abertura + corpo + cta + tags;
+  return (texto || '') + tags;
 }
 
-function getLegenda() {
-  return state.legendaGerada || gerarLegendaReal();
+// ─── RESETAR SLIDES ───
+function resetarSlides() {
+  state.slidesData = [];
+  state.slidesEditaveis = [];
+  renderPhase();
 }
 
-function getLegendaGerada() {
-  return gerarLegendaReal();
+// ─── GERAR COMANDO MONTAGEM (fase 6) ───
+function gerarComandoMontagem() {
+  const modelNum = state.modelo || '?';
+  const modelId = state.modeloDesignId || 'ID não selecionado';
+  return `Monte no Canva o carrossel aprovado usando o template Modelo ${modelNum}.
+Modelo selecionado: ${modelId}`;
 }
 
-function getExampleCarrossel() {
-  // Mantido como fallback — não é usado como geração principal
-  return state.carrosselGerado || '';
+// ─── COPIAR COMANDO MONTAGEM ───
+function copiarComandoMontagem() {
+  const cmd = gerarComandoMontagem();
+  navigator.clipboard.writeText(cmd).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = 'COPIADO!';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  });
 }
 
-function getMCPLog() {
-  return `<span style="color:var(--orange)">→</span> start-editing-transaction(DAHE5MATRwk)
-<span style="color:var(--muted)">  transaction_id: aguardando...</span>
-<span style="color:var(--muted)">  richtexts: mapeados</span>
-<span style="color:var(--muted)">  fills: identificados</span>`;
-}
-
-function getMCPLogFull() {
-  return `<span style="color:#4ade80">✓</span> start-editing-transaction(${state.modeloDesignId||'DAHE5MATRwk'})
-  transaction_id: 1326808059744986980
-  pages: ${state.modelo==='3'?13:state.modelo==='2'?10:9} páginas mapeadas
-
-<span style="color:#4ade80">✓</span> perform-editing-operations — Slide 1 (gancho)
-  replace_text: PBPMnL4QyG8Mlm7W-LBCxHSbYzrLKYTS7
-
-<span style="color:#4ade80">✓</span> perform-editing-operations — Slide 2 (contexto)
-  replace_text: PBCnPdyPV1zxB9PZ-LBmyNDZGbvCp9dsy
-
-<span style="color:#4ade80">✓</span> perform-editing-operations — Slides 3-6 (opções)
-  replace_text: [4 elementos] — labels + scripts
-
-<span style="color:#4ade80">✓</span> perform-editing-operations — Slides 7-9 (auth + CTA)
-  replace_text: [3 elementos]
-  [PROTEGIDO] SUELLEN WARMLING — ignorado
-
-<span style="color:#4ade80">✓</span> commit-editing-transaction()
-  status: saved
-  link: canva.com/design/${state.modeloDesignId||'DAHE5MATRwk'}/edit
-
-<span style="color:#4ade80">★</span> MONTAGEM CONCLUÍDA`;
+// ─── CONFIRMAR LINK CANVA (fase 7) ───
+function confirmarLink() {
+  if (!state.canvaLink || !state.canvaLink.trim()) {
+    alert('Cole o link do Canva antes de confirmar.');
+    return;
+  }
+  state.linkConfirmado = true;
+  renderPhase();
 }
 
 // ─── SLIDE EDITOR ───
-
 function buildSlidesEditor() {
-  // Se temos slidesData estruturado, usar ele diretamente
-  if (state.slidesData && state.slidesData.length > 0) {
-    state.slidesEditaveis = state.slidesData.map((s, i) => ({
-      id: i,
-      texto: `SLIDE ${String(i+1).padStart(2,'0')} — [Tipo: ${s.tipo.toUpperCase()}]\n${s.texto}\nVisual: ${{branco:'Fundo BRANCO',preto:'Fundo PRETO',laranja:'Fundo LARANJA #C84B1A',foto:'Fundo FOTO (overlay)'}[s.fundo]}`,
-      fundo: s.fundo,
-      tipo: s.tipo,
-    }));
-  } else {
-    const texto = state.carrosselGerado || '';
-    const blocos = texto.split(/\n---\n/).filter(b => b.trim());
-    state.slidesEditaveis = blocos.map((b, i) => ({ id: i, texto: b.trim(), fundo: 'branco', tipo: '' }));
+  if (!state.slidesEditaveis || state.slidesEditaveis.length === 0) {
+    if (state.slidesData && state.slidesData.length > 0) {
+      state.slidesEditaveis = state.slidesData.map((s, i) => ({
+        id: i,
+        texto: s.texto,
+        fundo: s.fundo,
+        tipo: s.tipo,
+      }));
+    } else {
+      return '<p style="color:var(--muted);font-size:13px">Nenhum slide encontrado.</p>';
+    }
   }
 
   const headerBg = {
@@ -1954,7 +1773,7 @@ function buildSlidesEditor() {
   };
 
   return state.slidesEditaveis.map((slide, i) => {
-    const linhas = slide.texto.split('\n');
+    const linhas = (slide.texto || '').split('\n');
     const titulo = linhas[0].replace(/^---\s*/, '').trim();
     const bg = headerBg[slide.fundo] || headerBg.branco;
 
@@ -1962,20 +1781,19 @@ function buildSlidesEditor() {
       <div class="slide-edit-card" id="slide-card-${i}">
         <div class="slide-edit-header" style="${bg}">
           <span class="slide-edit-num">${String(i+1).padStart(2,'0')}</span>
-          <span class="slide-edit-title">${titulo}</span>
+          <span class="slide-edit-title">${escapeHtml(titulo)}</span>
         </div>
         <textarea
           class="slide-edit-textarea"
           id="slide-textarea-${i}"
           rows="5"
           oninput="state.slidesEditaveis[${i}].texto=this.value"
-        >${slide.texto.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+        >${escapeHtml(slide.texto)}</textarea>
       </div>`;
   }).join('');
 }
 
 function salvarEdicoes() {
-  // Ler todas as textareas e salvar no state
   if (state.slidesEditaveis) {
     state.slidesEditaveis.forEach((slide, i) => {
       const el = document.getElementById('slide-textarea-' + i);
@@ -1996,6 +1814,7 @@ function aprovarTexto() {
   nextPhase();
 }
 
+// ─── COPY FUNCTIONS ───
 function copyCarrossel() {
   const texto = getTextoFinalSlides();
   navigator.clipboard.writeText(texto).then(() => {
@@ -2011,25 +1830,26 @@ function copyCarrossel() {
   });
 }
 
+function copyLegenda() {
+  navigator.clipboard.writeText(getLegenda()).then(() => {
+    const btn = event.target;
+    btn.textContent = 'COPIADO!';
+    setTimeout(() => btn.textContent = 'COPIAR', 2000);
+  });
+}
+
 function getTextoFinalSlides() {
   if (state.slidesEditaveis && state.slidesEditaveis.length > 0) {
     return state.slidesEditaveis.map(s => s.texto).join('\n\n---\n\n');
   }
-  return state.carrosselGerado || getExampleCarrossel();
+  return state.carrosselGerado || '';
 }
 
-function copiarComando() {
-  const modelo = state.modelo || '1';
-  const cmd = `Redefinir template ${modelo}`;
-  navigator.clipboard.writeText(cmd).then(() => {
-    const btn = event.target;
-    const orig = btn.textContent;
-    btn.textContent = 'COPIADO!';
-    setTimeout(() => { btn.textContent = orig; }, 2000);
-  });
+function getLegenda() {
+  return state.legendaGerada || extrairLegenda();
 }
 
-// ─── SLIDES PREVIEW GRID (fase 7) ───
+// ─── SLIDES PREVIEW GRID ───
 function buildSlidesPreviewGrid() {
   const slides = state.slidesData && state.slidesData.length > 0
     ? state.slidesData
@@ -2040,20 +1860,43 @@ function buildSlidesPreviewGrid() {
   const cards = slides.map((s, i) => {
     const num = String(i + 1).padStart(2, '0');
     const tipoLabel = (s.tipo || '').toUpperCase().replace(/\d/g, '');
-    const textoPreview = (s.texto || '').replace(/\n/g, ' ').slice(0, 80) + ((s.texto || '').length > 80 ? '…' : '');
+    const textoPreview = (s.textoSlide || s.texto || '').replace(/\n/g, ' ').slice(0, 80) + ((s.texto || '').length > 80 ? '…' : '');
     return `
       <div class="slide-preview-card fundo-${s.fundo || 'branco'}">
         <div class="slide-preview-num">${num}</div>
-        <div class="slide-preview-tipo">${tipoLabel}</div>
-        <div class="slide-preview-texto">${textoPreview.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        <div class="slide-preview-tipo">${escapeHtml(tipoLabel)}</div>
+        <div class="slide-preview-texto">${escapeHtml(textoPreview)}</div>
       </div>`;
   }).join('');
 
   return `
-    <div style="margin-bottom:8px">
+    <div style="margin-bottom:24px">
       <p style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--orange);margin-bottom:14px;">Prévia visual dos slides</p>
       <div class="slides-preview-grid">${cards}</div>
     </div>`;
+}
+
+// ─── REINICIAR ───
+function reiniciar() {
+  Object.assign(state, {
+    currentPhase: 1, tema: '', nicho: '', objetivo: '', gancho: '',
+    ganchoInput: '', extensao: '', voz: '', textoAprovado: false,
+    modelo: '', carrosselGerado: '', legendaGerada: '', canvaLink: '', modeloDesignId: '',
+    slidesData: [], slidesEditaveis: [], linkConfirmado: false,
+  });
+  renderAll();
+  window.scrollTo(0,0);
+}
+
+function copiarComandoRedefinir() {
+  const modelo = state.modelo || '1';
+  const cmd = `Redefinir template ${modelo}`;
+  navigator.clipboard.writeText(cmd).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = 'COPIADO!';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  });
 }
 
 // ─── INIT ───
