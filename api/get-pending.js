@@ -36,9 +36,8 @@ module.exports = async (req, res) => {
     // Pegar a mensagem mais recente com payload JSON (inline ou anexo)
     // Iterar do mais recente para o mais antigo
     for (const msg of [...messages].reverse()) {
-      // Pular mensagens já processadas
+      // Pular mensagens já processadas (break no ID igual — ntfy retorna em ordem cronológica)
       if (lastId && msg.id === lastId) break;
-      if (lastId && msg.id <= lastId) continue;
 
       // Tentar payload inline no campo message
       if (msg.message) {
