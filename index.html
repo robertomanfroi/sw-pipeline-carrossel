@@ -881,6 +881,16 @@
   /* ─── ANIMATIONS ─── */
   .phase-content { animation: fadeSlideIn 0.35s ease; }
 
+  /* ─── SPINNER ─── */
+  .spinner {
+    width: 48px; height: 48px;
+    border: 3px solid rgba(200,75,26,0.2);
+    border-top-color: var(--orange);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   /* ─── GANCHO OPTIONS ─── */
   .gancho-option {
     background: var(--card);
@@ -1045,7 +1055,7 @@
     <div class="sidebar-header">
       <div class="brand-tag">Pipeline v2.0</div>
       <div class="sidebar-title">Fábrica de<br>Carrosseis</div>
-      <div class="sidebar-sub">@suellenwarmling · Híbrido + Claude Code</div>
+      <div class="sidebar-sub">@suellenwarmling · Automático via Claude API</div>
     </div>
 
     <nav class="phases-nav" id="phasesNav">
@@ -1100,14 +1110,16 @@ const state = {
   slidesData: [],
   slidesEditaveis: [],
   linkConfirmado: false,
+  gerando: false,
+  erroGeracao: '',
 };
 
 // ─── PHASES ───
 const phases = [
   { num: 1, name: 'Tema & Gancho',      desc: 'Escolha ou sugira o tema' },
   { num: 2, name: 'Extensão & Voz',     desc: 'Configure o carrossel' },
-  { num: 3, name: 'Prompt Claude Code', desc: 'Copie e cole no Claude Code' },
-  { num: 4, name: 'Cole o Texto',       desc: 'Texto gerado pelo agente' },
+  { num: 3, name: 'Geração Automática',  desc: 'Claude API gera o texto' },
+  { num: 4, name: 'Revisar Texto',       desc: 'Edite e aprove os slides' },
   { num: 5, name: 'Modelo Canva',       desc: 'Selecione o template visual' },
   { num: 6, name: 'Montagem Canva',     desc: 'Comando de montagem via MCP' },
   { num: 7, name: 'Entrega',            desc: 'Link Canva + legenda pronta' },
@@ -1259,47 +1271,62 @@ function renderPhase() {
       </div>
 
       <div class="divider"></div>
-      <p style="font-size:13px;color:var(--muted);">Na próxima fase você receberá o prompt pronto para colar no Claude Code. O agente vai gerar o texto completo com IA real.</p>
+      <p style="font-size:13px;color:var(--muted);">Na próxima fase o sistema vai <strong style="color:var(--orange)">gerar automaticamente</strong> o texto completo via Claude API — sem precisar copiar ou colar nada.</p>
     `;
   }
 
-  // ─── FASE 3 — GERADOR DE PROMPT ───
+  // ─── FASE 3 — GERAÇÃO AUTOMÁTICA ───
   else if (phase === 3) {
-    const prompt = gerarPrompt();
+    const temSlides = state.slidesData && state.slidesData.length > 0;
+
+    if (temSlides) {
+      // Já gerado — vai para fase 4
+      state.currentPhase = 4;
+      renderAll();
+      return;
+    }
+
     html += `
       <div class="phase-header">
-        <div class="phase-eyebrow">Fase 03 — Prompt para o Claude Code</div>
-        <h1 class="phase-title">Prompt pronto para<br><em>Claude Code</em></h1>
-        <p class="phase-subtitle">Copie e cole no Claude Code para gerar o carrossel com IA real e montar no Canva.</p>
+        <div class="phase-eyebrow">Fase 03 — Geração Automática</div>
+        <h1 class="phase-title">Criando seu<br><em>carrossel com IA</em></h1>
+        <p class="phase-subtitle">O agente Fábrica de Carrosseis analisa o tema e gera o texto completo automaticamente.</p>
       </div>
 
-      <div class="prompt-box" id="promptBox">${escapeHtml(prompt)}</div>
-
-      <button class="btn btn-primary" style="width:100%;padding:13px;font-size:14px;margin-bottom:24px" onclick="copiarPrompt()">
-        📋 COPIAR PROMPT
-      </button>
-
-      <div class="steps-guide">
-        <div class="step-item">
-          <div class="step-num">1</div>
-          <div class="step-text">Copie o prompt acima clicando no botão <strong>COPIAR PROMPT</strong></div>
+      <div id="geracaoStatus">
+        ${state.gerando ? `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:20px;padding:48px 0">
+          <div class="spinner"></div>
+          <div style="font-size:14px;color:var(--orange);font-family:var(--font-mono)">Gerando carrossel...</div>
+          <div style="font-size:12px;color:var(--muted);text-align:center;max-width:320px">O agente está criando os slides com base no tema e fórmula viral validada</div>
         </div>
-        <div class="step-item">
-          <div class="step-num">2</div>
-          <div class="step-text">Cole no chat do <strong>Claude Code</strong> e envie</div>
+        ` : state.erroGeracao ? `
+        <div style="background:rgba(200,75,26,0.12);border:1px solid rgba(200,75,26,0.4);border-radius:12px;padding:20px;margin-bottom:24px">
+          <div style="font-weight:600;margin-bottom:8px">Erro na geração</div>
+          <div style="font-size:13px;color:var(--muted)">${escapeHtml(state.erroGeracao)}</div>
         </div>
-        <div class="step-item">
-          <div class="step-num">3</div>
-          <div class="step-text">Aguarde — o agente vai <strong>gerar o texto E montar no Canva</strong> automaticamente</div>
+        <button class="btn btn-primary" style="width:100%;padding:13px;font-size:14px" onclick="gerarCarrossel()">
+          Tentar novamente
+        </button>
+        ` : `
+        <div class="checkpoint" style="margin-bottom:28px">
+          <div class="checkpoint-icon">🤖</div>
+          <div>
+            <div class="checkpoint-title">Pronto para gerar</div>
+            <div class="checkpoint-desc">Tema: <strong>${escapeHtml(state.ganchoInput || state.nicho || 'automático')}</strong> · Nicho: <strong>${escapeHtml(state.nicho || 'negócios')}</strong> · ${escapeHtml(state.extensao || '10')} slides · Voz: <strong>${state.voz === 'marca' ? 'Marca' : 'Pessoa'}</strong></div>
+          </div>
         </div>
+        <button class="btn btn-primary" style="width:100%;padding:16px;font-size:15px;letter-spacing:0.03em" onclick="gerarCarrossel()">
+          ⚡ Gerar carrossel agora
+        </button>
+        `}
       </div>
-
-      <div class="divider"></div>
-
-      <button class="btn btn-ghost" style="width:100%;padding:13px;font-size:14px" onclick="goToPhase(4)">
-        Já executei — colar texto dos slides →
-      </button>
     `;
+
+    // Auto-iniciar geração se ainda não começou
+    if (!state.gerando && !state.erroGeracao && !temSlides) {
+      setTimeout(() => gerarCarrossel(), 200);
+    }
   }
 
   // ─── FASE 4 — EDITOR DE TEXTO (colar do agente) ───
@@ -1616,38 +1643,54 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-// ─── GERADOR DE PROMPT (fase 3) ───
-function gerarPrompt() {
-  const tema = state.ganchoInput && state.ganchoInput.trim()
-    ? state.ganchoInput.trim()
-    : 'sem tema definido — sugira com base no nicho';
-  const nicho = state.nicho || 'negócio local';
-  const objetivo = state.objetivo || 'engajamento geral';
-  const extensao = state.extensao || '10';
-  const voz = state.voz === 'marca' ? 'Marca/Empresa (A gente)' : state.voz === 'pessoa' ? 'Pessoa (1ª pessoa — Eu)' : 'não definido';
+// ─── GERAR CARROSSEL VIA CLAUDE API ───
+async function gerarCarrossel() {
+  state.gerando = true;
+  state.erroGeracao = '';
+  renderPhase();
 
-  return `/AIOS:agents:pipeline-carrossel-suellen
+  try {
+    const payload = {
+      tema: state.ganchoInput && state.ganchoInput.trim() ? state.ganchoInput.trim() : '',
+      nicho: state.nicho || 'negócios locais',
+      objetivo: state.objetivo || 'viralizar',
+      extensao: state.extensao || '10',
+      voz: state.voz || 'pessoa',
+    };
 
-Tema: ${tema}
-Nicho: ${nicho}
-Objetivo: ${objetivo}
-Extensão: ${extensao} slides
-Voz: ${voz}`;
-}
+    const resp = await fetch('/.netlify/functions/gerar-carrossel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
-// ─── COPIAR PROMPT ───
-function copiarPrompt() {
-  const prompt = gerarPrompt();
-  navigator.clipboard.writeText(prompt).then(() => {
-    const btn = event.target;
-    const orig = btn.textContent;
-    btn.textContent = '✓ COPIADO!';
-    btn.style.background = '#2a7a2a';
-    setTimeout(() => {
-      btn.textContent = orig;
-      btn.style.background = '';
-    }, 2200);
-  });
+    const data = await resp.json();
+
+    if (!resp.ok || data.error) {
+      throw new Error(data.error || `HTTP ${resp.status}`);
+    }
+
+    // Preencher state com os slides retornados
+    state.slidesData = data.slides || [];
+    state.slidesEditaveis = state.slidesData.map(s => ({
+      id: s.id,
+      texto: s.texto,
+      fundo: s.fundo,
+      tipo: s.tipo,
+    }));
+    state.legendaGerada = data.legenda || '';
+    state.carrosselGerado = data.textoCompleto || '';
+    state.gerando = false;
+
+    // Avançar automaticamente para fase 4
+    state.currentPhase = 4;
+    renderAll();
+
+  } catch (err) {
+    state.gerando = false;
+    state.erroGeracao = err.message || 'Erro desconhecido';
+    renderPhase();
+  }
 }
 
 // ─── PARSEAR SLIDES COLADOS (fase 4) ───
@@ -1883,6 +1926,7 @@ function reiniciar() {
     ganchoInput: '', extensao: '', voz: '', textoAprovado: false,
     modelo: '', carrosselGerado: '', legendaGerada: '', canvaLink: '', modeloDesignId: '',
     slidesData: [], slidesEditaveis: [], linkConfirmado: false,
+    gerando: false, erroGeracao: '',
   });
   renderAll();
   window.scrollTo(0,0);
