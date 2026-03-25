@@ -9,6 +9,13 @@ Treinado com engenharia reversa de 16 carrosseis de alta performance real.
 ## MODO DE OPERAÇÃO VIA API
 Quando receber mensagem com parâmetros já definidos (Tema, Nicho, Objetivo, Extensão, Voz), PULE todas as perguntas e vá direto para a criação do carrossel completo.
 
+## REGRA CRÍTICA DE SAÍDA
+NÃO escreva o DIAGNÓSTICO INTERNO na resposta. Execute-o internamente e comece a resposta DIRETAMENTE com o primeiro bloco "---" seguido de "SLIDE 1".
+NÃO inclua introduções, explicações, notas ou qualquer texto antes do SLIDE 1.
+A resposta DEVE começar exatamente assim:
+---
+SLIDE 1 — [Tipo: Gancho]
+
 ## TOP CARROSSEIS REAIS
 | # | Tema | Likes | Ratio |
 |---|---|---|---|
@@ -35,7 +42,7 @@ Fórmula 3 — ESTRATÉGIA PRÁTICA: Problema Real → Situação Concreta → I
 - "Caro empreendedor / cara empreendedora"
 - "Comente [PALAVRA] e [benefício específico]"
 
-## DIAGNÓSTICO INTERNO
+## DIAGNÓSTICO INTERNO (execute silenciosamente, NUNCA escreva na resposta)
 D1 — Fórmula: Evento real → F1 | Polêmica dois lados → F2 | Estratégia prática → F3
 D2 — Âncora: usa celebridade/marca/evento como gancho quando disponível
 D3 — Card de Virada (slides 6-9): frase mais impactante — filosófica, provocativa ou revelatória
@@ -43,7 +50,7 @@ D4 — Polarização: pelo menos 2 slides fundo preto (se F1 ou F2)
 D5 — CTA alinhado ao objetivo informado
 
 ## FORMATO DE ENTREGA OBRIGATÓRIO
-Entregue EXATAMENTE neste formato:
+A resposta COMEÇA com "---" e "SLIDE 1". Zero texto antes disso.
 
 ---
 SLIDE 1 — [Tipo: Gancho]
@@ -108,7 +115,7 @@ Objetivo: ${objetivoMap[objetivo] || objetivo || 'Viralizar'}
 Extensão: até ${extensao || '10'} slides
 Voz: ${voz === 'marca' ? 'Marca/Empresa (A gente)' : 'Pessoa (1ª pessoa — Eu)'}
 
-Execute o DIAGNÓSTICO INTERNO e entregue o carrossel completo no formato exato (blocos separados por ---). Não faça perguntas. Entregue direto os slides + legenda.`;
+Execute o DIAGNÓSTICO INTERNO silenciosamente e entregue o carrossel completo no formato exato. Comece DIRETAMENTE com "---" e "SLIDE 1". Sem introduções. Sem explicações. Slides + legenda apenas.`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -142,19 +149,26 @@ Execute o DIAGNÓSTICO INTERNO e entregue o carrossel completo no formato exato 
       : textoCompleto;
     if (legendaMatch) legenda = legendaMatch[1].trim();
 
-    // Parse slides
+    // Parse slides — SOMENTE blocos que começam com "SLIDE \d+"
     const slides = [];
-    const blocos = textoSlides.split(/\n---\n/).filter(b => b.trim());
+    const blocos = textoSlides.split(/\n?---\n?/).filter(b => b.trim());
+
     blocos.forEach((bloco, i) => {
       const linhas = bloco.split('\n').filter(l => l.trim());
       if (!linhas.length) return;
-      const tituloRaw = linhas[0].replace(/^---\s*/, '').trim();
+
+      const tituloRaw = linhas[0].trim();
+
+      // ✅ Quinn: Só aceitar blocos que começam com "SLIDE \d+"
+      if (!/^SLIDE\s+\d+/i.test(tituloRaw)) return;
+
       const visualLine = linhas.find(l => /^Visual:/i.test(l.trim())) || '';
       const vl = visualLine.toLowerCase();
       let fundo = 'branco';
       if (vl.includes('laranja') || vl.includes('#c84b1a')) fundo = 'laranja';
       else if (vl.includes('preto') || vl.includes('#000')) fundo = 'preto';
       else if (vl.includes('foto') || vl.includes('suellen')) fundo = 'foto';
+
       const tl = tituloRaw.toLowerCase();
       let tipo = 'desenvolvimento';
       if (tl.includes('gancho')) tipo = 'gancho';
@@ -163,8 +177,10 @@ Execute o DIAGNÓSTICO INTERNO e entregue o carrossel completo no formato exato 
       else if (tl.includes('lição') || tl.includes('licao')) tipo = 'lição';
       else if (tl.includes('autoridade')) tipo = 'autoridade';
       else if (tl.includes('virada')) tipo = 'virada';
+
       const textoSlide = linhas.filter((l, idx) => idx > 0 && !/^Visual:/i.test(l.trim())).join('\n').trim();
-      slides.push({ id: i, num: i + 1, titulo: tituloRaw, tipo, fundo, textoSlide, texto: bloco.trim() });
+
+      slides.push({ id: slides.length, num: slides.length + 1, titulo: tituloRaw, tipo, fundo, textoSlide, texto: bloco.trim() });
     });
 
     return res.status(200).json({ slides, legenda, textoCompleto });

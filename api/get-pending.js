@@ -12,9 +12,10 @@ module.exports = async (req, res) => {
   const lastId = req.query.lastId || null;
 
   try {
-    // Buscar mensagens dos últimos 30 minutos
-    const since = Math.floor((Date.now() - 30 * 60 * 1000) / 1000);
-    const ntfyRes = await fetch(`https://ntfy.sh/${NTFY_TOPIC}/json?poll=1&since=${since}`, {
+    // Se temos lastId, usar since=<msgId> do ntfy — retorna APENAS mensagens APÓS aquele ID
+    // Caso contrário, buscar últimos 30 minutos como fallback
+    const sinceParam = lastId ? lastId : Math.floor((Date.now() - 30 * 60 * 1000) / 1000);
+    const ntfyRes = await fetch(`https://ntfy.sh/${NTFY_TOPIC}/json?poll=1&since=${sinceParam}`, {
       headers: { 'Accept': 'application/json' },
     });
 
@@ -36,7 +37,7 @@ module.exports = async (req, res) => {
     // Pegar a mensagem mais recente com payload JSON (inline ou anexo)
     // Iterar do mais recente para o mais antigo
     for (const msg of [...messages].reverse()) {
-      // Pular mensagens já processadas (break no ID igual — ntfy retorna em ordem cronológica)
+      // Se não usamos since=<msgId>, ainda assim ignorar o próprio lastId
       if (lastId && msg.id === lastId) break;
 
       // Tentar payload inline no campo message
