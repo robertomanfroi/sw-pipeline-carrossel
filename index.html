@@ -1105,13 +1105,14 @@ const state = {
   modelo: '',
   carrosselGerado: '',
   legendaGerada: '',
-  canvaLink: '',
   modeloDesignId: '',
   slidesData: [],
   slidesEditaveis: [],
-  linkConfirmado: false,
   gerando: false,
   erroGeracao: '',
+  montando: false,
+  montadoOk: false,
+  erroMontagem: '',
 };
 
 // ─── PHASES ───
@@ -1120,9 +1121,7 @@ const phases = [
   { num: 2, name: 'Extensão & Voz',     desc: 'Configure o carrossel' },
   { num: 3, name: 'Geração Automática',  desc: 'Claude API gera o texto' },
   { num: 4, name: 'Revisar Texto',       desc: 'Edite e aprove os slides' },
-  { num: 5, name: 'Modelo Canva',       desc: 'Selecione o template visual' },
-  { num: 6, name: 'Montagem Canva',     desc: 'Comando de montagem via MCP' },
-  { num: 7, name: 'Entrega',            desc: 'Link Canva + legenda pronta' },
+  { num: 5, name: 'Montar no Canva',    desc: 'Selecione modelo e monte' },
 ];
 
 // ─── RENDER SIDEBAR ───
@@ -1148,7 +1147,8 @@ function renderSidebar() {
   document.getElementById('topbarLabel').textContent = `Fase ${state.currentPhase} — ${phases[state.currentPhase-1].name}`;
 
   document.getElementById('btnPrev').style.display = state.currentPhase === 1 ? 'none' : '';
-  document.getElementById('btnNext').textContent = state.currentPhase === 7 ? '✓ Concluir' : 'Avançar →';
+  document.getElementById('btnNext').style.display = state.currentPhase === 5 ? 'none' : '';
+  document.getElementById('btnNext').textContent = 'Avançar →';
 }
 
 // ─── PHASE CONTENT ───
@@ -1438,152 +1438,75 @@ function renderPhase() {
       </div>
 
       ${state.modelo ? `
-      <div style="margin-top:20px">
-        ${state.modelo === '1' ? '<div class="tag tag-orange">✓ Sem imagens externas necessárias</div>' : ''}
+      <div style="margin-top:28px">
+        ${state.modelo === '1' ? '<div class="tag tag-orange" style="margin-bottom:20px">✓ Sem imagens externas necessárias</div>' : ''}
         ${state.modelo === '2' ? `
-          <div class="formula-badge" style="margin-top:0">
+          <div class="formula-badge" style="margin-top:0;margin-bottom:20px">
             <span class="formula-icon">🖼️</span>
-            <div>
-              <strong>6 imagens necessárias</strong> — uma por analogia nos slides 1-6
-              <div style="font-size:11px;color:var(--muted);margin-top:2px;">O sistema vai buscar automaticamente via web após você definir os famosos/marcas</div>
-            </div>
+            <div><strong>6 imagens</strong> — o agente buscará automaticamente via web</div>
           </div>
         ` : ''}
         ${state.modelo === '3' ? `
-          <div class="formula-badge" style="margin-top:0">
+          <div class="formula-badge" style="margin-top:0;margin-bottom:20px">
             <span class="formula-icon">📱</span>
-            <div>
-              <strong>Prints reais necessários</strong> — slides 2-8 requerem imagens do caso
-              <div style="font-size:11px;color:var(--muted);margin-top:2px;">Você pode fornecer prints ou o sistema buscará imagens ilustrativas</div>
-            </div>
+            <div><strong>Prints reais</strong> — informe ao agente quais imagens usar</div>
           </div>
         ` : ''}
-      </div>
-      ` : ''}
-    `;
-  }
 
-  // ─── FASE 6 — MONTAGEM CANVA LAUNCHER ───
-  else if (phase === 6) {
-    const modelNum = state.modelo || '?';
-    const modelId = state.modeloDesignId || 'selecione um modelo';
-    const comandoMontagem = gerarComandoMontagem();
-    html += `
-      <div class="phase-header">
-        <div class="phase-eyebrow">Fase 06 — Montagem no Canva</div>
-        <h1 class="phase-title">Monte no <em>Canva</em><br>via Claude Code</h1>
-        <p class="phase-subtitle">Copie o comando abaixo e cole no Claude Code. O agente vai usar start-editing-transaction + perform-editing-operations + commit para montar todos os slides no Canva.</p>
-      </div>
-
-      <div class="form-group">
-        <label>Template selecionado</label>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px">
-          <div class="tag tag-orange">MODELO ${modelNum} — ${modelId}</div>
-          <div class="tag tag-muted">NUNCA editar template original</div>
+        <!-- BOTÃO MONTAR -->
+        ${state.montando ? `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px;background:var(--card);border:1px solid var(--orange);border-radius:12px">
+          <div class="spinner"></div>
+          <div style="font-size:14px;color:var(--orange);font-family:var(--font-mono)">Enviando para montagem...</div>
+          <div style="font-size:12px;color:var(--muted);text-align:center">O Claude Code vai montar no Canva e enviar o link via Telegram em ~2 minutos</div>
         </div>
-      </div>
-
-      <div class="generated-box" style="margin-bottom:16px">
-        <div class="generated-header">
-          <div class="generated-label">Comando de montagem</div>
-          <button class="copy-btn" onclick="copiarComandoMontagem()">COPIAR</button>
+        ` : state.erroMontagem ? `
+        <div style="background:rgba(200,75,26,0.12);border:1px solid rgba(200,75,26,0.4);border-radius:12px;padding:20px;margin-bottom:16px">
+          <div style="font-weight:600;margin-bottom:8px">Erro ao enviar</div>
+          <div style="font-size:13px;color:var(--muted)">${escapeHtml(state.erroMontagem)}</div>
         </div>
-        <div class="generated-content" style="font-family:var(--font-mono);font-size:13px">${escapeHtml(comandoMontagem)}</div>
-      </div>
-
-      <div class="steps-guide" style="margin-bottom:28px">
-        <div class="step-item">
-          <div class="step-num">1</div>
-          <div class="step-text">Copie o comando acima clicando em <strong>COPIAR</strong></div>
-        </div>
-        <div class="step-item">
-          <div class="step-num">2</div>
-          <div class="step-text">Cole no <strong>Claude Code</strong> e envie</div>
-        </div>
-        <div class="step-item">
-          <div class="step-num">3</div>
-          <div class="step-text">O agente vai usar <strong>start-editing-transaction → perform-editing-operations → commit</strong> automaticamente</div>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <button class="btn btn-primary" style="width:100%;padding:13px;font-size:14px" onclick="goToPhase(7)">
-        Montagem concluída — ver resultado →
-      </button>
-    `;
-  }
-
-  // ─── FASE 7 — ENTREGA ───
-  else if (phase === 7) {
-    const modelNum = state.modelo || '1';
-    html += `
-      <div class="phase-header">
-        <div class="phase-eyebrow">Fase 07 — Entrega</div>
-        <h1 class="phase-title">Carrossel<br><em>montado no Canva!</em></h1>
-        <p class="phase-subtitle">Cole o link do Canva retornado pelo Claude Code para finalizar.</p>
-      </div>
-
-      ${!state.linkConfirmado ? `
-      <div class="form-group">
-        <label>Link do Canva retornado pelo Claude Code</label>
-        <input id="canvaLinkInput" placeholder="Cole aqui o link do Canva retornado pelo Claude Code..." oninput="state.canvaLink=this.value" value="${escapeHtml(state.canvaLink)}">
-        <button class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;margin-top:8px" onclick="confirmarLink()">
-          Confirmar link
+        <button class="btn btn-primary" style="width:100%;padding:14px;font-size:15px" onclick="montarNoCanva()">
+          Tentar novamente
         </button>
+        ` : state.montadoOk ? `
+        <div style="background:rgba(40,180,90,0.1);border:1px solid rgba(40,180,90,0.4);border-radius:12px;padding:24px;text-align:center;margin-bottom:20px">
+          <div style="font-size:28px;margin-bottom:8px">✅</div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:6px">Comando enviado com sucesso!</div>
+          <div style="font-size:13px;color:var(--muted)">O Claude Code está montando no Canva agora.<br>O link chegará via <strong>Telegram</strong> em ~2 minutos.</div>
+        </div>
+
+        <!-- PREVIEW E LEGENDA -->
+        ${buildSlidesPreviewGrid()}
+
+        <div class="generated-box" style="margin-bottom:16px">
+          <div class="generated-header">
+            <div class="generated-label">Legenda gerada</div>
+            <button class="copy-btn" onclick="copyLegenda()">COPIAR</button>
+          </div>
+          <div class="generated-content" id="legendaFinal">${escapeHtml(getLegenda())}</div>
+        </div>
+
+        <div class="generated-box" style="margin-bottom:24px">
+          <div class="generated-header">
+            <div class="generated-label">Texto completo dos slides</div>
+            <button class="copy-btn" onclick="copyCarrossel()">COPIAR TUDO</button>
+          </div>
+          <div class="generated-content">${escapeHtml(getTextoFinalSlides())}</div>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" style="font-size:12px;padding:8px 18px" onclick="reiniciar()">+ Novo carrossel</button>
+        </div>
+        ` : `
+        <button class="btn btn-primary" style="width:100%;padding:16px;font-size:16px;letter-spacing:0.02em" onclick="montarNoCanva()">
+          🎨 Montar no Canva automaticamente
+        </button>
+        <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:10px">O link chegará via Telegram em ~2 minutos. Claude Code precisa estar aberto.</p>
+        `}
       </div>
       ` : `
-      <!-- CANVA LINK -->
-      <div class="delivery-card">
-        <div class="delivery-header">
-          <div class="delivery-icon">🎨</div>
-          <div class="delivery-title">Design montado no Canva — Modelo ${modelNum}</div>
-        </div>
-        <div class="delivery-body">
-          <a class="canva-link" href="${escapeHtml(state.canvaLink)}" target="_blank">
-            <div class="canva-link-icon">🔗</div>
-            <div class="canva-link-text">
-              <div class="canva-link-label">Abrir no Canva para exportar</div>
-              <div class="canva-link-url">${escapeHtml(state.canvaLink)}</div>
-            </div>
-            <div class="canva-link-arrow">↗</div>
-          </a>
-          <p style="font-size:12px;color:var(--muted)">No Canva: <strong>Compartilhar → Baixar → PNG → Todas as páginas → Baixar</strong></p>
-        </div>
-      </div>
+      <p style="font-size:13px;color:var(--muted);margin-top:20px">← Selecione um modelo acima para montar no Canva.</p>
       `}
-
-      <!-- PREVIEW VISUAL DOS SLIDES -->
-      ${buildSlidesPreviewGrid()}
-
-      ${state.slidesData && state.slidesData.length > 0 ? `
-      <!-- TEXTO DOS SLIDES -->
-      <div class="generated-box" style="margin-bottom:16px">
-        <div class="generated-header">
-          <div class="generated-label">Texto completo dos slides</div>
-          <button class="copy-btn" onclick="copyCarrossel()">COPIAR TUDO</button>
-        </div>
-        <div class="generated-content" id="carrosselFinal">${escapeHtml(getTextoFinalSlides())}</div>
-      </div>
-
-      <!-- LEGENDA -->
-      <div class="generated-box" style="margin-bottom:24px">
-        <div class="generated-header">
-          <div class="generated-label">Legenda gerada</div>
-          <button class="copy-btn" onclick="copyLegenda()">COPIAR</button>
-        </div>
-        <div class="generated-content" id="legendaFinal">${escapeHtml(getLegenda())}</div>
-      </div>
-      ` : ''}
-
-      <div style="background:var(--orange-pale);border:1px solid rgba(200,75,26,0.25);border-radius:10px;padding:18px 20px">
-        <p style="font-size:13px;font-weight:600;margin-bottom:6px">📌 Após postar</p>
-        <p style="font-size:12px;color:var(--muted)">Avise o agente que postou para ele <strong>redefinir o template de trabalho</strong> e deixar pronto para o próximo carrossel.</p>
-        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-          <button class="btn btn-primary" style="font-size:12px;padding:8px 18px" onclick="reiniciar()">+ Novo carrossel</button>
-          <button class="btn btn-ghost" style="font-size:12px" onclick="copiarComandoRedefinir()">Copiar comando: Redefinir template ${modelNum}</button>
-        </div>
-      </div>
     `;
   }
 
@@ -1674,6 +1597,8 @@ async function gerarCarrossel() {
     state.slidesData = data.slides || [];
     state.slidesEditaveis = state.slidesData.map(s => ({
       id: s.id,
+      num: s.num,
+      titulo: s.titulo,
       texto: s.texto,
       fundo: s.fundo,
       tipo: s.tipo,
@@ -1736,7 +1661,7 @@ function parsearSlidesColados() {
     return { id: i, tipo, fundo, titulo, texto: bloco.trim(), textoSlide };
   });
 
-  state.slidesEditaveis = state.slidesData.map(s => ({ id: s.id, texto: s.texto, fundo: s.fundo, tipo: s.tipo }));
+  state.slidesEditaveis = state.slidesData.map(s => ({ id: s.id, num: s.num, titulo: s.titulo, texto: s.texto, fundo: s.fundo, tipo: s.tipo }));
 
   // Gerar legenda a partir do CTA/último slide
   state.legendaGerada = extrairLegenda();
@@ -1764,33 +1689,52 @@ function resetarSlides() {
   renderPhase();
 }
 
-// ─── GERAR COMANDO MONTAGEM (fase 6) ───
-function gerarComandoMontagem() {
-  const modelNum = state.modelo || '?';
-  const modelId = state.modeloDesignId || 'ID não selecionado';
-  return `Monte no Canva o carrossel aprovado usando o template Modelo ${modelNum}.
-Modelo selecionado: ${modelId}`;
-}
-
-// ─── COPIAR COMANDO MONTAGEM ───
-function copiarComandoMontagem() {
-  const cmd = gerarComandoMontagem();
-  navigator.clipboard.writeText(cmd).then(() => {
-    const btn = event.target;
-    const orig = btn.textContent;
-    btn.textContent = 'COPIADO!';
-    setTimeout(() => { btn.textContent = orig; }, 2000);
-  });
-}
-
-// ─── CONFIRMAR LINK CANVA (fase 7) ───
-function confirmarLink() {
-  if (!state.canvaLink || !state.canvaLink.trim()) {
-    alert('Cole o link do Canva antes de confirmar.');
+// ─── MONTAR NO CANVA VIA TELEGRAM BRIDGE ───
+async function montarNoCanva() {
+  if (!state.slidesData || !state.slidesData.length) {
+    alert('Nenhum slide disponível. Volte para a fase de geração.');
     return;
   }
-  state.linkConfirmado = true;
+  if (!state.modeloDesignId) {
+    alert('Selecione um modelo Canva antes de montar.');
+    return;
+  }
+
+  state.montando = true;
+  state.erroMontagem = '';
+  state.montadoOk = false;
   renderPhase();
+
+  try {
+    const payload = {
+      slides: state.slidesEditaveis.length ? state.slidesEditaveis : state.slidesData,
+      legenda: getLegenda(),
+      modeloNum: state.modelo,
+      modeloDesignId: state.modeloDesignId,
+      nicho: state.nicho || 'negócios locais',
+    };
+
+    const resp = await fetch('/api/montar-canva', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok || data.error) {
+      throw new Error(data.error || `HTTP ${resp.status}`);
+    }
+
+    state.montando = false;
+    state.montadoOk = true;
+    renderPhase();
+
+  } catch (err) {
+    state.montando = false;
+    state.erroMontagem = err.message || 'Erro desconhecido';
+    renderPhase();
+  }
 }
 
 // ─── SLIDE EDITOR ───
@@ -1799,6 +1743,8 @@ function buildSlidesEditor() {
     if (state.slidesData && state.slidesData.length > 0) {
       state.slidesEditaveis = state.slidesData.map((s, i) => ({
         id: i,
+        num: s.num || (i + 1),
+        titulo: s.titulo || '',
         texto: s.texto,
         fundo: s.fundo,
         tipo: s.tipo,
@@ -1924,9 +1870,10 @@ function reiniciar() {
   Object.assign(state, {
     currentPhase: 1, tema: '', nicho: '', objetivo: '', gancho: '',
     ganchoInput: '', extensao: '', voz: '', textoAprovado: false,
-    modelo: '', carrosselGerado: '', legendaGerada: '', canvaLink: '', modeloDesignId: '',
-    slidesData: [], slidesEditaveis: [], linkConfirmado: false,
+    modelo: '', carrosselGerado: '', legendaGerada: '', modeloDesignId: '',
+    slidesData: [], slidesEditaveis: [],
     gerando: false, erroGeracao: '',
+    montando: false, montadoOk: false, erroMontagem: '',
   });
   renderAll();
   window.scrollTo(0,0);
