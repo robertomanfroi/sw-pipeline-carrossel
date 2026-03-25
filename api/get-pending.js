@@ -30,13 +30,26 @@ module.exports = async (req, res) => {
       try { return JSON.parse(line); } catch { return null; }
     }).filter(Boolean);
 
-    // Pegar a mensagem mais recente com payload JSON
+    // Pegar a mensagem mais recente com payload JSON (inline ou anexo)
     for (const msg of messages.reverse()) {
+      // Tentar payload inline no campo message
       if (msg.message) {
         try {
           const payload = JSON.parse(msg.message);
           if (payload.slides && payload.modeloDesignId) {
             return res.status(200).json({ pending: true, ...payload });
+          }
+        } catch {}
+      }
+      // Tentar payload como anexo (attachment)
+      if (msg.attachment && msg.attachment.url) {
+        try {
+          const attachRes = await fetch(msg.attachment.url);
+          if (attachRes.ok) {
+            const payload = await attachRes.json();
+            if (payload.slides && payload.modeloDesignId) {
+              return res.status(200).json({ pending: true, ...payload });
+            }
           }
         } catch {}
       }
