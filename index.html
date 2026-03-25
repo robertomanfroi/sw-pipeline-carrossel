@@ -1658,7 +1658,7 @@ async function gerarCarrossel() {
       voz: state.voz || 'pessoa',
     };
 
-    const resp = await fetch('/.netlify/functions/gerar-carrossel', {
+    const resp = await fetch('/api/gerar-carrossel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
