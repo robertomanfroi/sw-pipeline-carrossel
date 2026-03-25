@@ -8,9 +8,12 @@ module.exports = async (req, res) => {
 
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
+  // lastId: ID da última mensagem já processada (deduplicação)
+  const lastId = req.query.lastId || null;
+
   try {
-    // Buscar mensagens dos últimos 3 minutos
-    const since = Math.floor((Date.now() - 3 * 60 * 1000) / 1000);
+    // Buscar mensagens dos últimos 30 minutos
+    const since = Math.floor((Date.now() - 30 * 60 * 1000) / 1000);
     const ntfyRes = await fetch(`https://ntfy.sh/${NTFY_TOPIC}/json?poll=1&since=${since}`, {
       headers: { 'Accept': 'application/json' },
     });
@@ -31,13 +34,18 @@ module.exports = async (req, res) => {
     }).filter(Boolean);
 
     // Pegar a mensagem mais recente com payload JSON (inline ou anexo)
-    for (const msg of messages.reverse()) {
+    // Iterar do mais recente para o mais antigo
+    for (const msg of [...messages].reverse()) {
+      // Pular mensagens já processadas
+      if (lastId && msg.id === lastId) break;
+      if (lastId && msg.id <= lastId) continue;
+
       // Tentar payload inline no campo message
       if (msg.message) {
         try {
           const payload = JSON.parse(msg.message);
           if (payload.slides && payload.modeloDesignId) {
-            return res.status(200).json({ pending: true, ...payload });
+            return res.status(200).json({ pending: true, ntfyId: msg.id, ...payload });
           }
         } catch {}
       }
@@ -48,7 +56,7 @@ module.exports = async (req, res) => {
           if (attachRes.ok) {
             const payload = await attachRes.json();
             if (payload.slides && payload.modeloDesignId) {
-              return res.status(200).json({ pending: true, ...payload });
+              return res.status(200).json({ pending: true, ntfyId: msg.id, ...payload });
             }
           }
         } catch {}
