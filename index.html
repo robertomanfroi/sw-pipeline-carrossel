@@ -1102,10 +1102,10 @@ const state = {
   extensao: '',
   voz: '',
   textoAprovado: false,
-  modelo: '',
+  modelo: '1',
   carrosselGerado: '',
   legendaGerada: '',
-  modeloDesignId: '',
+  modeloDesignId: 'DAHE5MATRwk',
   slidesData: [],
   slidesEditaveis: [],
   gerando: false,
@@ -1410,30 +1410,6 @@ function renderPhase() {
           </div>
         </div>
 
-        <div class="model-card ${state.modelo==='2'?'selected':''}" onclick="selectModel('2')">
-          <div class="model-preview m2-preview">
-            <div class="m2-overlay">
-              <div class="m2-text">Ivete não sobe no trio pensando em quem <strong>não gosta</strong> de Carnaval...</div>
-            </div>
-          </div>
-          <div class="model-info">
-            <div class="model-name">Modelo 2</div>
-            <div class="model-slides">10 SLIDES</div>
-            <div class="model-desc">Analogias com famosos → Lição → CTA. Requer 6 imagens de busca.</div>
-          </div>
-        </div>
-
-        <div class="model-card ${state.modelo==='3'?'selected':''}" onclick="selectModel('3')">
-          <div class="model-preview m3-preview">
-            <div class="m3-img-slot">📸 print real</div>
-            <div class="m3-text-slot">Caso real com prints reais do WhatsApp ou stories...</div>
-          </div>
-          <div class="model-info">
-            <div class="model-name">Modelo 3</div>
-            <div class="model-slides">13 SLIDES</div>
-            <div class="model-desc">Caso real → Prints → Solução → CTA. Requer prints do cliente.</div>
-          </div>
-        </div>
 
       </div>
 
@@ -1523,7 +1499,7 @@ function select(key, val, el) {
 
 function selectModel(num) {
   state.modelo = num;
-  const ids = { '1': 'DAHE5MATRwk', '2': 'DAHE5Fele2U', '3': 'DAHE5Owuqkk' };
+  const ids = { '1': 'DAHE5MATRwk' };
   state.modeloDesignId = ids[num];
   renderPhase();
   renderSidebar();
@@ -1872,7 +1848,7 @@ function reiniciar() {
   Object.assign(state, {
     currentPhase: 1, tema: '', nicho: '', objetivo: '', gancho: '',
     ganchoInput: '', extensao: '', voz: '', textoAprovado: false,
-    modelo: '', carrosselGerado: '', legendaGerada: '', modeloDesignId: '',
+    modelo: '1', carrosselGerado: '', legendaGerada: '', modeloDesignId: 'DAHE5MATRwk',
     slidesData: [], slidesEditaveis: [],
     gerando: false, erroGeracao: '',
     montando: false, montadoOk: false, erroMontagem: '',
