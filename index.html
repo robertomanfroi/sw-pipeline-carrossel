@@ -1600,6 +1600,7 @@ async function gerarCarrossel() {
       num: s.num,
       titulo: s.titulo,
       texto: s.texto,
+      textoSlide: s.textoSlide || '',
       fundo: s.fundo,
       tipo: s.tipo,
     }));
@@ -1658,10 +1659,10 @@ function parsearSlidesColados() {
     // Texto sem a linha Visual: e sem o título
     const textoSlide = linhas.filter((l, idx) => idx > 0 && !l.toLowerCase().startsWith('visual:')).join('\n').trim();
 
-    return { id: i, tipo, fundo, titulo, texto: bloco.trim(), textoSlide };
+    return { id: i, num: i + 1, tipo, fundo, titulo, texto: bloco.trim(), textoSlide };
   });
 
-  state.slidesEditaveis = state.slidesData.map(s => ({ id: s.id, num: s.num, titulo: s.titulo, texto: s.texto, fundo: s.fundo, tipo: s.tipo }));
+  state.slidesEditaveis = state.slidesData.map(s => ({ id: s.id, num: s.num, titulo: s.titulo, texto: s.texto, textoSlide: s.textoSlide || '', fundo: s.fundo, tipo: s.tipo }));
 
   // Gerar legenda a partir do CTA/último slide
   state.legendaGerada = extrairLegenda();
@@ -1746,6 +1747,7 @@ function buildSlidesEditor() {
         num: s.num || (i + 1),
         titulo: s.titulo || '',
         texto: s.texto,
+        textoSlide: s.textoSlide || '',
         fundo: s.fundo,
         tipo: s.tipo,
       }));
